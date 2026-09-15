@@ -1,0 +1,10 @@
+interface:
+  display_name: "Duo: ревью сделанного"
+  short_description: "Ревью в том же треде, что и план, до трёх раундов"
+  default_prompt: "Используй $duo-review, чтобы отдать сделанную работу Codex на ревью в постоянном треде."
+policy:
+  # The Claude frontmatter carries disable-model-invocation for the same reason:
+  # these two are entry points a person picks, and a model choosing between them
+  # on its own would start a Codex thread nobody asked for. Codex defaults this
+  # to true, so leaving it out is not the same as leaving it alone.
+  allow_implicit_invocation: false
