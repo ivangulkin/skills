@@ -22,45 +22,138 @@
 
 Write each artifact in the language its area and repository require. Text
 written for a human in Russian — chat answers first of all, then commits, code
-comments, docs — follows the `ru` rules:
+comments, docs — follows the `ru` rules.
+
+Five that hold for any edit:
 
 - keep facts, numbers, conditions, negation, certainty, status, code, quotations
   and chosen terms through every edit;
-- fix what the source says before fixing how it reads: an edit to the wording
-  laid over an uncorrected fact only makes the wrong claim smoother;
-- connect sentences by the relation that actually holds, and pick the mark from
-  the construction rather than from the pause;
+- fix what the source says before fixing how it reads: wording smoothed over an
+  uncorrected claim only makes the wrong claim more convincing;
 - let the request set how much you may change. "Fix the punctuation" is not
   permission to cut the padding;
+- a number is a reason to look again, never a reason to rewrite;
 - returning the text unchanged is a result.
 
-Invoke `ru` for anything document-sized: it carries the norm with its sources
-and the editorial layer in one procedure. `no-ai-slop` is its former name and
-points at the same rules.
+## Russian, always on
+
+The skill body loads when it is invoked, and a two-line chat reply never invokes
+it. These fire on every Russian sentence, so they live here instead.
+
+**Marks come from the construction, not from the pause.**
+
+- The dash has positions, and outside them another mark is right: zero copula
+  (`Kafka — распределённый лог`), ellipsis, an asyndetic sentence. It does not
+  replace a comma around a parenthesis.
+- The colon points backwards: cause and explanation come *after* it (`Сборка
+  упала: кончилось место`). Cause first takes a dash (`Кончилось место — сборка
+  упала`).
+- After a colon, lowercase — except direct speech and a quotation.
+- No comma after `однако`, `поэтому`, `причём`, `тем не менее` opening a
+  sentence, and none after an opening adverbial of time: `В 2024 году мы
+  перешли…`, not `В 2024 году, мы…`. Both are calques of English commas.
+- An indirect question ends with a full stop: `Непонятно, почему это
+  происходит.`
+
+**Sentences carry their own logic.**
+
+- Known first, new last. The end of the sentence is the emphatic position.
+- Pick the conjunction from the relation that actually holds. `и` does not
+  become `поэтому`: that asserts a causality nobody established.
+- A gerund clause belongs to the subject of its sentence. `Проанализировав
+  логи, стало ясно` has no subject to belong to.
+- Verb aspect carries the status of the work: `исправляли` is not `исправили`,
+  and an edit that changes the aspect changes the fact.
+
+**Form follows the genre.**
+
+- A reference section takes a noun heading (`Выполнение команд`), a how-to takes
+  an infinitive, a FAQ takes a question. Title Case does not exist in Cyrillic.
+- `вы` is lowercase. No colon after a section heading.
+- Do not open with `В современном мире`, and do not call something important
+  instead of showing why.
+
+**And do not imitate a human.** Typos, slang, particles and ragged sentence
+length for the sake of "liveliness" are as much a defect as officialese. The
+goal is Russian that is clear and exact, not Russian that passes a detector.
+
+Invoke `ru` for anything longer than a couple of sentences: it carries these
+rules with the paragraph each one stands on, plus the editorial layer, in one
+procedure. `no-ai-slop` is its former name and points at the same rules.
 ```
 
-Пять смысловых пунктов: язык артефакта, защита смысла, порядок слоёв (факты
-раньше формы), выбор знака по конструкции, объём правки по просьбе. Плюс строка
-о том, что возврат текста без изменений — результат, и куда идти за
-подробностями.
+Ядро делится надвое, и деление намеренное.
 
-Порядок слоёв стоит в ядре не для красоты: он единственный, который нельзя
-восстановить из справочника постфактум. Если модель сначала пригладила язык, а
-потом взялась за факты, неверное утверждение уже стало убедительнее.
+**Пять пунктов про всякую правку** — язык артефакта, защита смысла, порядок
+слоёв, объём правки по просьбе, возврат без изменений как результат. Порядок
+слоёв стоит здесь потому, что его нельзя восстановить из справочника
+постфактум: если модель сначала пригладила язык, неверное утверждение уже стало
+убедительнее.
 
-## Чего в ядре намеренно нет
+**Пятнадцать правил, которые срабатывают на каждой русской фразе** — знаки,
+построение предложения, форма заголовка. Они здесь по другой причине: **тело
+скилла грузится при вызове, а короткая реплика в чате скилл не вызывает.**
+Правило, которое нужно в каждом втором предложении, не может жить только в
+справочнике, который откроют по просьбе.
 
-**«Заголовки номинативные».** Это предпочтение для отчётов. Без условия оно
-ломает инструкции (`Как запустить проверку` — законный заголовок how-to) и FAQ.
-Правило с условиями живёт в `references/headings.md`, H1–H6.
+Отбор такой: сюда попадает то, что (1) срабатывает на обычной фразе, а не на
+документе, (2) ломается у агентов чаще всего и (3) формулируется одной строкой
+без условий. Всё, что требует условия, регистра или параграфа, остаётся в
+карточке.
 
-**Различение прямого и косвенного вопроса.** Занимает место, а в коротком ответе
-почти не встречается. Правило — в `references/questions.md`, Q1–Q6.
+Цена: блок `Prose` — 62 строки, около 900 токенов, весь `CLAUDE.md` — около
+2000. Это на каждую сессию, независимо от того, будет ли в ней русский текст.
 
-**Списки слов.** Ни запрещённых, ни рекомендованных. Жёсткий бан лексики
-измеримо роняет качество письма, а модель обходит его синонимом.
+## Что переехало в ядро и почему
 
-**Числовые пороги.** Их нет и в самом скилле.
+**Тип заголовка по жанру.** Раньше этого в ядре не было: правило без условия
+ломает how-to (`Как запустить проверку` — законный заголовок) и FAQ. Условие
+влезло в одну строку — справочник берёт существительное, инструкция инфинитив,
+FAQ вопрос, — и правило переехало. Полная карта жанров осталась в
+`references/headings.md`, H1–H6.
+
+**Косвенный вопрос.** Раньше считалось, что в коротком ответе он почти не
+встречается. Это оказалось неверно: агент задаёт вопрос в пояснении постоянно, и
+это одна из тех ошибок, ради которых скилл и писался. Правило — в ядре, разбор
+случаев — в `references/questions.md`, Q1–Q6.
+
+## Чего в ядре по-прежнему нет
+
+**Списков слов.** Ни запрещённых, ни рекомендованных. Под безусловный запрет
+попадает правильная конструкция, и тогда правило ломает грамотный текст.
+
+**Числовых порогов.** Их нет и в самом скилле; в ядре про это сказано отдельной
+строкой — «число это повод перечитать, а не право переписать».
+
+**Условий применимости.** Регистр, поверхность и аудитория решают, какое правило
+к тексту применимо, и это целый справочник — `references/context.md`. В ядре
+стоят только те правила, у которых условий нет: они верны для любой русской
+фразы.
+
+## Второй слой: напоминание на каждом ходу
+
+Ядро читается один раз, при старте сессии, и в длинном разговоре уезжает в
+дальний конец контекста. Хук `UserPromptSubmit` возвращает его к моменту ответа.
+
+`claude/hooks/ru-reminder.sh` смотрит, есть ли в промпте кириллица, и если есть —
+печатает восемь строк с теми же правилами. На английском ходу он молчит и не
+стоит ничего. Новых правил он не вводит: всё, что он говорит, уже есть в ядре.
+
+Механизм документирован: stdout хука `UserPromptSubmit` добавляется в контекст
+модели, и сам хук выполняется до обработки промпта —
+[документация](https://code.claude.com/docs/en/hooks).
+
+Проверка кириллицы нарочно грубая — любой байт `D0`/`D1` в полезной нагрузке.
+Ошибки здесь несимметричны: промолчать на русском ходу значит потерять то, ради
+чего хук написан, а заговорить на английском стоит восьми строк контекста.
+
+Хук **никогда не блокирует**: любой сбой оставляет ход в покое, все пути выходят
+с нулём. Тесты — `claude/hooks/tests/ru-reminder-tests.sh`.
+
+⚠️ **Хук не поедет автоматически, если `~/.claude/settings.json` разошёлся с
+репозиторием.** Установщик такое назначение не перетирает, а сообщает о
+расхождении и оставляет как есть. Что делать — в
+[claude-code.md](claude-code.md), раздел «Установка».
 
 ## Что ядро не гарантирует
 
