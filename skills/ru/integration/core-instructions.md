@@ -79,7 +79,7 @@ goal is Russian that is clear and exact, not Russian that passes a detector.
 
 Invoke `ru` for anything longer than a couple of sentences: it carries these
 rules with the paragraph each one stands on, plus the editorial layer, in one
-procedure. `no-ai-slop` is its former name and points at the same rules.
+procedure — wordiness, clichés, an assertion with no source behind it.
 ```
 
 Ядро делится надвое, и деление намеренное.
