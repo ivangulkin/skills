@@ -1,0 +1,8 @@
+interface:
+  display_name: "Duo: парный разбор с Codex"
+  short_description: "Постоянный именованный тред, согласование за 3 раунда"
+  default_prompt: "Используй $duo, чтобы обсудить решение с Codex в постоянном треде и сойтись за несколько раундов, а потом отревьюить сделанное."
+policy:
+  # The engine is not an entry point: duo-design and duo-review use it, and its
+  # own description says so. Nothing should reach it by matching a description.
+  allow_implicit_invocation: false
