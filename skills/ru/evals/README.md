@@ -20,6 +20,8 @@ Suite проверяет:
 - `technical` и `legal` register gates;
 - clean IT terms и legitimate «от broker до consumer»;
 - `artifact-strict` vs `hygiene-contextual` exit semantics;
+- `demo-only` tier выключен по умолчанию и включается `--demo-rules`;
+- отчёт называет, чего он не проверял, и в пустом, и в непустом виде;
 - JSON schema и opt-in observations;
 - Confluence storage extraction: visible prose сканируется, macros, attributes,
   code и quotes защищены;

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Report mechanically detectable prose findings as exact spans.
 
-The scanner has three rule tiers:
+The scanner has four rule tiers, three of which run by default:
 
 * artifact-strict: narrow tool/service residue. ``--artifacts-only`` scans
   only this tier and exits 1 on a hit, which makes it suitable for CI.
@@ -9,6 +9,13 @@ The scanner has three rule tiers:
   characters with legitimate non-AI sources. Report-only.
 * soft-candidate: lexical and syntactic locations that require editorial
   judgment, register gating, and Terminology Lock. Report-only.
+* demo-only: OFF by default, enabled with ``--demo-rules``. Grammar patterns
+  kept to show where regex recognition stops, not to check Russian. A regex
+  cannot find the subject of a sentence, so these fire on correct text; they
+  are not part of the normal check path.
+
+The report always ends with what was NOT inspected. A clean run means no
+pattern matched, never that the text is correct.
 
 Raw document measurements are opt-in through ``--observations``. They have no
 quality threshold and are never converted to an authorship or "slop" score.
@@ -34,7 +41,13 @@ from typing import Iterable
 
 
 RULES_PATH = Path(__file__).with_name("rules.json")
-TIERS = ("artifact-strict", "hygiene-contextual", "soft-candidate")
+TIERS = ("artifact-strict", "hygiene-contextual", "soft-candidate", "demo-only")
+DEFAULT_TIERS = frozenset(TIERS[:3])
+NOT_CHECKED = (
+    "Не проверялось: факты и числа, причинность, отрицание, область условия, "
+    "статус и уверенность, сохранность цитат и терминов, связность, структура, "
+    "соответствие источнику. Совпадение — повод открыть карточку, не диагноз."
+)
 REGISTERS = (
     "general",
     "technical",
@@ -443,7 +456,7 @@ def applicable_rules(
         for rule in rules
         if _language_enabled(rule, language)
         and register not in rule.off_registers
-        and (tiers is None or rule.tier in tiers)
+        and rule.tier in (DEFAULT_TIERS if tiers is None else tiers)
     ]
 
 
@@ -541,16 +554,13 @@ def _finding_dict(finding: Finding) -> dict[str, object]:
 
 def _render(findings: list[Finding], raw_observations: list[dict[str, object]]) -> str:
     if not findings and not raw_observations:
-        return (
-            "Механических совпадений не найдено. Это не оценка качества: "
-            "Fact-Lock, sources, structure, register, Terminology Lock и voice "
-            "проверяются по SKILL.md."
-        )
+        return "Механических совпадений не найдено.\n" + NOT_CHECKED
 
     tier_titles = {
         "artifact-strict": "STRICT TOOL RESIDUE",
         "hygiene-contextual": "CONTEXTUAL HYGIENE",
         "soft-candidate": "SOFT CANDIDATES",
+        "demo-only": "DEMO ONLY — границы распознавания, не результат проверки",
     }
     lines: list[str] = []
     for tier in TIERS:
@@ -589,6 +599,7 @@ def _render(findings: list[Finding], raw_observations: list[dict[str, object]]) 
         "Contextual hygiene требует проверки source; soft candidate требует "
         "register, Terminology Lock и редакторского решения."
     )
+    lines.append(NOT_CHECKED)
     return "\n".join(lines).rstrip()
 
 
@@ -612,6 +623,11 @@ def main(argv: list[str] | None = None) -> int:
         help="scan artifact-strict only; exit 1 on a hit",
     )
     parser.add_argument(
+        "--demo-rules",
+        action="store_true",
+        help="also run demo-only grammar patterns; they fire on correct text",
+    )
+    parser.add_argument(
         "--observations",
         action="store_true",
         help="add raw document measurements without thresholds",
@@ -629,7 +645,12 @@ def main(argv: list[str] | None = None) -> int:
 
     findings: list[Finding] = []
     raw_observations: list[dict[str, object]] = []
-    tiers = {"artifact-strict"} if args.artifacts_only else None
+    if args.artifacts_only:
+        tiers: set[str] | None = {"artifact-strict"}
+    elif args.demo_rules:
+        tiers = set(TIERS)
+    else:
+        tiers = None
     for path in args.files:
         try:
             text = _read_source(path)
@@ -659,6 +680,7 @@ def main(argv: list[str] | None = None) -> int:
                     "register": args.register,
                     "spans": [_finding_dict(finding) for finding in findings],
                     "observations": raw_observations,
+                    "not_checked": NOT_CHECKED,
                 },
                 ensure_ascii=False,
                 indent=2,

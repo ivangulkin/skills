@@ -35,6 +35,7 @@ class SlopSpansTests(unittest.TestCase):
         *,
         register: str = "general",
         surface: str = "markdown",
+        tiers: set[str] | None = None,
     ) -> list[str]:
         findings = SLOPSPANS.scan_text(
             "fixture.md",
@@ -43,26 +44,60 @@ class SlopSpansTests(unittest.TestCase):
             language="ru",
             register=register,
             surface=surface,
+            tiers=tiers,
         )
         return [finding.rule.id for finding in findings]
 
     def test_every_rule_has_working_examples(self) -> None:
+        every = set(SLOPSPANS.TIERS)
         for rule in self.rules:
             with self.subTest(rule=rule.id, case="positive"):
-                self.assertIn(rule.id, self.ids(rule.examples["positive"]))
+                self.assertIn(rule.id, self.ids(rule.examples["positive"], tiers=every))
             with self.subTest(rule=rule.id, case="negative"):
-                self.assertNotIn(rule.id, self.ids(rule.examples["negative"]))
+                self.assertNotIn(
+                    rule.id, self.ids(rule.examples["negative"], tiers=every)
+                )
             with self.subTest(rule=rule.id, case="boundary"):
-                self.assertNotIn(rule.id, self.ids(rule.examples["boundary"]))
+                self.assertNotIn(
+                    rule.id, self.ids(rule.examples["boundary"], tiers=every)
+                )
+
+    def test_demo_rules_are_off_by_default(self) -> None:
+        demo = [rule.id for rule in self.rules if rule.tier == "demo-only"]
+        self.assertEqual(
+            ["grammar.dangling-gerund", "grammar.punctuation-calque"], sorted(demo)
+        )
+        for rule_id in demo:
+            rule = next(r for r in self.rules if r.id == rule_id)
+            with self.subTest(rule=rule_id):
+                self.assertNotIn(rule_id, self.ids(rule.examples["positive"]))
+                self.assertIn(
+                    rule_id,
+                    self.ids(
+                        rule.examples["positive"], tiers=set(SLOPSPANS.TIERS)
+                    ),
+                )
+
+    def test_report_names_what_was_not_checked(self) -> None:
+        clean = SLOPSPANS._render([], [])
+        self.assertIn("Не проверялось", clean)
+        findings = SLOPSPANS.scan_text(
+            "fixture.md", "В современном мире кэш важен.", self.rules
+        )
+        self.assertIn("Не проверялось", SLOPSPANS._render(findings, []))
 
     def test_rule_registry_ids_are_unique(self) -> None:
         ids = [rule.id for rule in self.rules]
         self.assertEqual(len(ids), len(set(ids)))
 
-    def test_rules_have_sources_and_three_tiers(self) -> None:
+    def test_rules_have_sources_and_declared_tiers(self) -> None:
         self.assertEqual(
             {rule.tier for rule in self.rules},
+            {"artifact-strict", "hygiene-contextual", "soft-candidate", "demo-only"},
+        )
+        self.assertEqual(
             {"artifact-strict", "hygiene-contextual", "soft-candidate"},
+            set(SLOPSPANS.DEFAULT_TIERS),
         )
         self.assertTrue(all(rule.source.strip() for rule in self.rules))
 
@@ -96,7 +131,11 @@ class SlopSpansTests(unittest.TestCase):
     def test_multiline_paragraph_matching(self) -> None:
         text = "Используя этот метод,\nэффективность повышается."
         findings = SLOPSPANS.scan_text(
-            "wrapped.md", text, self.rules, register="general"
+            "wrapped.md",
+            text,
+            self.rules,
+            register="general",
+            tiers=set(SLOPSPANS.TIERS),
         )
         gerunds = [
             finding
@@ -109,7 +148,11 @@ class SlopSpansTests(unittest.TestCase):
     def test_sentence_anchor_reports_the_actionable_line(self) -> None:
         text = "Кэш прогрет и работает.\nОднако, latency не упал."
         findings = SLOPSPANS.scan_text(
-            "anchored.md", text, self.rules, register="technical"
+            "anchored.md",
+            text,
+            self.rules,
+            register="technical",
+            tiers=set(SLOPSPANS.TIERS),
         )
         calques = [
             finding
@@ -373,6 +416,7 @@ class SlopSpansTests(unittest.TestCase):
         ids = self.ids(
             "Учитывая нагрузку, нужно добавить реплику.",
             register="technical",
+            tiers=set(SLOPSPANS.TIERS),
         )
         self.assertNotIn("grammar.dangling-gerund", ids)
 
@@ -380,6 +424,7 @@ class SlopSpansTests(unittest.TestCase):
         ids = self.ids(
             "Мы используем инструменты, такие как Prometheus и Grafana, для метрик.",
             register="technical",
+            tiers=set(SLOPSPANS.TIERS),
         )
         self.assertNotIn("grammar.punctuation-calque", ids)
 

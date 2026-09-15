@@ -52,15 +52,21 @@
     },
     {
       "id": "code_only",
-      "prompt": "Отрефактори функцию и почини race condition:\n```go\nfunc f() {}\n```",
+      "prompt": "Отрефактори функцию и почини race condition. В ответе — только код, без пояснений:\n```go\nfunc f() {}\n```",
       "expect": "no_trigger",
-      "reason": "Code implementation is outside the prose workflow."
+      "reason": "Результат ограничен кодом: прозы в ответе нет. Если бы просьба допускала русское объяснение, объяснение попало бы под ru — см. code_with_explanation."
     },
     {
       "id": "sql_optimization",
-      "prompt": "Оптимизируй SELECT, он делает seq scan",
+      "prompt": "Оптимизируй SELECT, он делает seq scan. Верни только запрос и план.",
       "expect": "no_trigger",
-      "reason": "Database diagnosis is not prose editing."
+      "reason": "Результат ограничен запросом и планом: диагностика базы прозой не является. Русское объяснение, если бы его попросили, под ru попадает — см. code_with_explanation."
+    },
+    {
+      "id": "code_with_explanation",
+      "prompt": "Оптимизируй этот SELECT и напиши в README абзац, почему так быстрее",
+      "expect": "trigger",
+      "reason": "Русский абзац для README — связная проза; запрос остаётся вне правки."
     },
     {
       "id": "standalone_english",
