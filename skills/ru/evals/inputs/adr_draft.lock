@@ -1,0 +1,7 @@
+literal:MongoDB
+literal:products
+literal:PostgreSQL
+literal:category_id
+literal:brand_id
+price
+literal:p95

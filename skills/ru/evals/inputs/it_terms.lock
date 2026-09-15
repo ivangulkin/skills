@@ -1,0 +1,20 @@
+pipeline
+Пайплайн
+topic
+Producer
+broker
+consumer group
+partition
+Consumer lag
+seq scan
+Retry
+literal:DLQ
+backpressure
+Rate limiter
+query plan
+pod
+rollout
+consumer
+rebalance
+staging
+production

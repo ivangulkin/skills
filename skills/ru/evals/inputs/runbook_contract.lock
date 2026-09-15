@@ -1,0 +1,11 @@
+# Exact literals and project terminology
+consumer
+consumer lag
+pod
+health check
+#payments-oncall
+rollout
+literal:Available=True
+Ready
+rollback
+payments

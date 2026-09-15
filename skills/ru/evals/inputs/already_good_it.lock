@@ -1,0 +1,12 @@
+literal:XML parser
+document
+memory
+process
+literal:батчить INSERT
+literal:COPY
+Streaming parser
+memory spike
+benchmark
+hypothesis
+measurements
+import pipeline

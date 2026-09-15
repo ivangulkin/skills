@@ -1,0 +1,5 @@
+literal:XML
+батчить вставки
+literal:INSERT
+Стриминговый парсер
+literal:COPY
