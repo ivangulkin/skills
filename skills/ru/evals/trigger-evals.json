@@ -1,0 +1,96 @@
+{
+  "skill_name": "ru",
+  "description": "Activation cases for the implicit Russian IT prose skill. These are behavioral cases for model evaluation, not keyword-classifier accuracy.",
+  "cases": [
+    {
+      "id": "ru_it_edit",
+      "prompt": "Убери воду из README, но Kafka terms не переводи",
+      "expect": "trigger",
+      "reason": "Explicit Russian prose edit in the core technical scope."
+    },
+    {
+      "id": "ru_adr_write",
+      "prompt": "Напиши ADR по этим notes без канцелярита и сохрани uncertainty",
+      "expect": "trigger",
+      "reason": "Russian technical writing with Fact-Lock."
+    },
+    {
+      "id": "ru_audit",
+      "prompt": "Проверь этот текст на AI-паттерны, не переписывай",
+      "expect": "trigger",
+      "reason": "Explicit audit mode."
+    },
+    {
+      "id": "ru_mixed_terms",
+      "prompt": "Сделай объяснение короче: consumer lag растёт после rebalance",
+      "expect": "trigger",
+      "reason": "Russian prose with embedded English IT terms remains Russian scope."
+    },
+    {
+      "id": "ru_authorship_question",
+      "prompt": "Это написал ChatGPT? Покажи конкретные признаки в тексте",
+      "expect": "trigger",
+      "reason": "Skill should decline authorship inference and provide span-level audit."
+    },
+    {
+      "id": "ru_detector_bypass",
+      "prompt": "Перепиши так, чтобы GPTZero не заметил",
+      "expect": "trigger",
+      "reason": "Skill should reject detector optimization and offer reader-facing editing."
+    },
+    {
+      "id": "ru_confluence_rfc",
+      "prompt": "Почисти Confluence RFC, но не меняй macros, Jira keys и Kafka terms",
+      "expect": "trigger",
+      "reason": "Russian technical edit with an explicit Confluence surface contract."
+    },
+    {
+      "id": "ru_source_audit",
+      "prompt": "Проверь, подтверждают ли ссылки claims в этом русском обзоре",
+      "expect": "trigger",
+      "reason": "Citation audit is part of Russian prose quality and Fact-Lock."
+    },
+    {
+      "id": "code_only",
+      "prompt": "Отрефактори функцию и почини race condition:\n```go\nfunc f() {}\n```",
+      "expect": "no_trigger",
+      "reason": "Code implementation is outside the prose workflow."
+    },
+    {
+      "id": "sql_optimization",
+      "prompt": "Оптимизируй SELECT, он делает seq scan",
+      "expect": "no_trigger",
+      "reason": "Database diagnosis is not prose editing."
+    },
+    {
+      "id": "standalone_english",
+      "prompt": "Rewrite this English launch post to sound less robotic.",
+      "expect": "no_trigger",
+      "reason": "Standalone English prose is excluded."
+    },
+    {
+      "id": "translation",
+      "prompt": "Переведи этот RFC с английского на русский дословно",
+      "expect": "no_trigger",
+      "reason": "Verbatim translation has different success criteria."
+    },
+    {
+      "id": "grammar_only",
+      "prompt": "Проверь только орфографию в этом предложении",
+      "expect": "trigger",
+      "reason": "ru покрывает грамматику: узкая просьба ограничивает объём правки, а не отменяет вызов."
+    },
+    {
+      "id": "verbatim_copy",
+      "prompt": "Перенеси эту цитату в документ без единого изменения",
+      "expect": "no_trigger",
+      "reason": "Verbatim material is protected and needs no editing workflow."
+    },
+    {
+      "id": "binding_legal",
+      "prompt": "Незаметно улучши формулировки подписанного договора",
+      "expect": "no_trigger",
+      "reason": "Binding legal cosmetic edits require explicit authorized scope."
+    }
+  ]
+}

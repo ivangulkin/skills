@@ -1,0 +1,693 @@
+{
+  "schema_version": 2,
+  "registry_updated": "2026-08-24",
+  "evidence_policy": "../references/source-integrity.md",
+  "source_registry": {
+    "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing": {
+      "kind": "external",
+      "accessed": "2026-08-23",
+      "immutable": false,
+      "claim": "Living descriptive catalog of visible artifacts and false-positive caveats."
+    },
+    "https://arxiv.org/html/2510.15061v2": {
+      "kind": "publication",
+      "accessed": "2026-08-21",
+      "immutable": true,
+      "claim": "Reported frequency differences do not justify blanket pattern bans."
+    },
+    "https://arxiv.org/html/2406.07016": {
+      "kind": "publication",
+      "accessed": "2026-08-21",
+      "immutable": false,
+      "claim": "Corpus-level excess vocabulary is not a per-document authorship signal."
+    },
+    "editorial": {
+      "kind": "heuristic",
+      "accessed": "2026-08-23",
+      "immutable": true,
+      "claim": "Reader-facing editorial judgment; no provenance claim."
+    },
+    "Нора Галь, Слово живое и мёртвое": {
+      "kind": "book",
+      "accessed": "2026-08-21",
+      "immutable": true,
+      "claim": "Russian bureaucratese mechanisms, not AI provenance."
+    },
+    "русская грамматика": {
+      "kind": "language-rule",
+      "accessed": "2026-08-23",
+      "immutable": true,
+      "claim": "Grammar correctness independent of authorship."
+    },
+    "русская пунктуация": {
+      "kind": "language-rule",
+      "accessed": "2026-08-23",
+      "immutable": true,
+      "claim": "Punctuation correctness independent of authorship."
+    }
+  },
+  "rules": [
+    {
+      "id": "artifact.openai.content-reference",
+      "label": "Служебная citation-разметка OpenAI",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": ":contentReference\\[oaicite:\\d+\\]\\{index=\\d+\\}|oai_citation:\\d+‡\\S*|oaicite:\\d+",
+      "hint": "Удалить marker и отдельно восстановить или проверить source рядом с claim.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": ":contentReference[oaicite:5]{index=5}",
+        "negative": "В статье обсуждается слово oaicite без номера.",
+        "boundary": "oai citation: five"
+      }
+    },
+    {
+      "id": "artifact.openai.turn-marker",
+      "label": "Внутренний marker tool result",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "\\b(?:filecite|cite)?turn\\d+(?:search|fetch|file|image|news|video|ref)\\d+\\b",
+      "hint": "Заменить внутренний id реальным source или удалить unsupported claim.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "fileciteturn0file2",
+        "negative": "turn to search the index",
+        "boundary": "turn0search"
+      }
+    },
+    {
+      "id": "artifact.openai.sandbox-link",
+      "label": "Session-local sandbox link",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "\\]\\(sandbox:/mnt/data/[^)]+\\)",
+      "hint": "Ссылка не работает вне исходной session. Нужен реальный файл или новый URL.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "](sandbox:/mnt/data/report.csv)",
+        "negative": "Файл лежит в /mnt/data/report.csv.",
+        "boundary": "sandbox:/mnt/data/report.csv"
+      }
+    },
+    {
+      "id": "artifact.openai.angle-citation",
+      "label": "Внутренняя angle citation",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "【\\d+(?::\\d+)?†source】",
+      "hint": "Удалить marker; source и claim проверить отдельно.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "【12:4†source】",
+        "negative": "【注】",
+        "boundary": "[12 source]"
+      }
+    },
+    {
+      "id": "artifact.openai.internal-field",
+      "label": "Внутреннее поле citation pipeline",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "\\b(?:attributableIndex|citegenerated-reference-identifier)\\b|vertexaisearch\\.cloud\\.google\\.com/grounding-api-redirect",
+      "hint": "Удалить служебное поле или redirect и восстановить конечный source.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "citegenerated-reference-identifier",
+        "negative": "attributable index in the database",
+        "boundary": "attributable_index"
+      }
+    },
+    {
+      "id": "artifact.grok.card",
+      "label": "Служебная citation-card разметка Grok",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "grok_card://\\S+|grok_render_citation_card_json|<grok-card\\b[^>]*citation_card",
+      "hint": "Заменить card marker реальной ссылкой на source.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "grok_render_citation_card_json={}",
+        "negative": "Карточка Grok описана обычным текстом.",
+        "boundary": "grok-card citation"
+      }
+    },
+    {
+      "id": "artifact.gemini.citation",
+      "label": "Служебная citation-разметка Gemini",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "\\[cite_start\\]|\\[[Cc]ite:\\s?\\d+(?:,\\s?\\d+)*\\]|\\[span_\\d+\\][\\[(](?:start_span|end_span)[\\])]",
+      "hint": "Удалить span/cite marker и проверить source claim.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "[span_2](start_span)",
+        "negative": "[citation needed]",
+        "boundary": "[cite: section]"
+      }
+    },
+    {
+      "id": "artifact.deepseek.line-citation",
+      "label": "Внутренняя line citation DeepSeek",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "【\\d+†L\\d+(?:-L?\\d+)?】",
+      "hint": "Внутренний range viewer недоступен reader'у. Нужна реальная ссылка.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "【85†L261-269】",
+        "negative": "【85】",
+        "boundary": "[85 L261-269]"
+      }
+    },
+    {
+      "id": "artifact.perplexity.attachment",
+      "label": "Служебная attachment/citation разметка",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "attached_file://\\S+|\\[(?:attached_file|web):\\d+\\]|ppl-ai-file-upload|\\[citation:\\d+\\]",
+      "hint": "Session attachment нужно заменить реальным file/source.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "[attached_file:2]",
+        "negative": "attached file 2",
+        "boundary": "[attached_file:x]"
+      }
+    },
+    {
+      "id": "artifact.copilot.footnote",
+      "label": "Служебная footnote-разметка Copilot",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "\\[\\^\\d+\\^\\]",
+      "hint": "Проверить и заменить нестандартную footnote реальной citation.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "[^3^]",
+        "negative": "[^3]",
+        "boundary": "[3^]"
+      }
+    },
+    {
+      "id": "artifact.model.reasoning-tag",
+      "label": "Служебный reasoning tag",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": "</?(?:think|thinking)>|<\\|(?:assistant|analysis|system|user|tool)[^|]*\\|>",
+      "hint": "Удалить служебный tag; содержимое проверить как обычный текст.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "</think>",
+        "negative": "Модель сначала думает, затем отвечает.",
+        "boundary": "<thought>"
+      }
+    },
+    {
+      "id": "artifact.model.writing-block",
+      "label": "Служебная граница writing block",
+      "tier": "artifact-strict",
+      "language": "any",
+      "pattern": ":::\\w+\\{variant\\w*=",
+      "hint": "Удалить block wrapper, содержимое оставить.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": ":::writing{variant=\"document\"}",
+        "negative": ":::note{title=\"Важно\"}",
+        "boundary": ":::writing"
+      }
+    },
+    {
+      "id": "hygiene.tracking-parameter",
+      "label": "Tracking parameter AI-service",
+      "tier": "hygiene-contextual",
+      "language": "any",
+      "pattern": "[?&](?:utm_source=(?:chatgpt\\.com|openai|copilot\\.com)|referrer=grok\\.com)",
+      "hint": "Очистить URL, если tracking не нужен. Это metadata, не authorship evidence.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "?utm_source=chatgpt.com",
+        "negative": "?utm_source=newsletter",
+        "boundary": "utm_source=chatgpt"
+      }
+    },
+    {
+      "id": "hygiene.placeholder",
+      "label": "Незаполненный placeholder",
+      "tier": "hygiene-contextual",
+      "language": "any",
+      "pattern": "(?i)\\[(?:вставьте|укажите|добавьте|ваше|название компании)[^\\]]{0,60}\\]|\\b(?:INSERT_SOURCE_URL(?:_\\d+)?|URL_HERE|PASTE_[A-Z0-9_]+_URL_HERE)\\b|\\b(?:19|20)\\d{2}-(?:0[1-9]|1[0-2]|[Xx]{2})-[Xx]{2}\\b",
+      "hint": "Заполнить из source или явно оставить template. Не считать tool provenance.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "INSERT_SOURCE_URL_30",
+        "negative": "https://example.com/source",
+        "boundary": "2025-11-30"
+      }
+    },
+    {
+      "id": "hygiene.invisible-character",
+      "label": "Невидимый или служебный Unicode character",
+      "tier": "hygiene-contextual",
+      "language": "any",
+      "pattern": "[\\u200b-\\u200c\\u200e-\\u200f\\u202a-\\u202e\\u2060-\\u2064\\u2066-\\u2069\\ufeff\\ufff9-\\ufffb\\u00ad\\ue200-\\ue204\\uea01-\\uea02]",
+      "hint": "Проверить source: CMS, PDF, Word и encoding тоже создают такие characters.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "слово​слово",
+        "negative": "два обычных слова",
+        "boundary": "👨‍👩‍👧"
+      }
+    },
+    {
+      "id": "hygiene.glued-source-counters",
+      "label": "Склеенные source counters",
+      "tier": "hygiene-contextual",
+      "language": "any",
+      "pattern": "[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё ]{1,30}(?:\\+\\d+[A-ZА-ЯЁ][A-Za-zА-Яа-яЁё ]{0,30}){1,}\\+\\d+",
+      "hint": "Проверить citation rendering: несколько source labels могли склеиться при copy/paste.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "IT Governance+3ISO+3",
+        "negative": "C++17",
+        "boundary": "Plan A+1"
+      }
+    },
+    {
+      "id": "hygiene.ref-name",
+      "label": "Подозрительное имя named reference",
+      "tier": "hygiene-contextual",
+      "language": "any",
+      "pattern": "<ref\\b[^>]*\\bname=[\"']\\d+(?:search|fetch|file|image|news|video|ref)\\d+[\"']",
+      "hint": "Проверить reference name и восстановить source; ordinary named refs допустимы.",
+      "off_registers": [],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "<ref name=\"0search12\">",
+        "negative": "<ref name=\"source12\">",
+        "boundary": "<ref name=\"turn0search0\">"
+      }
+    },
+    {
+      "id": "soft.empty-opening",
+      "label": "Пустая подводка",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:в современном мире|в наше время|в эпоху цифров\\w+|не секрет,? что|важно отметить|стоит отметить|следует отметить|давайте (?:разбер[её]мся|рассмотрим)|в этом разделе мы рассмотрим|как мы уже говорили)",
+      "hint": "Начать с факта, решения или действия. В scientific/legal register сначала проверить норму.",
+      "off_registers": [
+        "scientific",
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial; https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "В современном мире сервисы должны быть надёжными.",
+        "negative": "Сервис возвращает 503 после timeout.",
+        "boundary": "Современный мир описан в романе."
+      }
+    },
+    {
+      "id": "soft.filler",
+      "label": "Слово-подушка",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:по сути|как известно|важно понимать|следует учитывать|достаточно просто|в целом можно сказать|можно с уверенностью сказать)\\b",
+      "hint": "Проверить deletion test; honest uncertainty сохранить.",
+      "off_registers": [
+        "scientific",
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "По сути, кэш просто хранит ответ.",
+        "negative": "Суть ошибки — lost update.",
+        "boundary": "По существу спора суд решил иначе."
+      }
+    },
+    {
+      "id": "soft.promotional-language",
+      "label": "Promotional claim без evidence",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:мощн(?:ый|ая|ое|ые|ого|ой|ому|ым|ом|ую|ых|ыми)|бесшовн\\w+|революционн\\w+|game[- ]?changing|production[- ]ready|enterprise[- ]grade|легко и непринужд[её]нно|всего за пару строк)\\b",
+      "hint": "Заменить source-backed behavior/measurement или убрать оценку.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial; https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "Мощная бесшовная платформа решает задачу.",
+        "negative": "Мощность двигателя — 2 кВт.",
+        "boundary": "production deployment завершён."
+      }
+    },
+    {
+      "id": "soft.hollow-conclusion",
+      "label": "Пустой вывод",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:таким образом,? мы рассмотрели|в заключение хочется отметить|подводя итог,? можно сказать|надеемся,? (?:что )?эт\\w+ (?:документация|статья|материал))",
+      "hint": "Закончить последним фактом, решением, ограничением или action.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Таким образом, мы рассмотрели все варианты.",
+        "negative": "Настроенный таким образом сервис переживает restart.",
+        "boundary": "Таким образом доказана лемма."
+      }
+    },
+    {
+      "id": "soft.chat-wrapper",
+      "label": "Service wrapper чата",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:конечно!|отличный вопрос|надеюсь,? это помож|дайте знать,? если|вот подробн\\w+ (?:объяснение|разбор)|рад помочь)",
+      "hint": "В chat answer начать с результата. В email проверить greeting/sign-off norm.",
+      "off_registers": [
+        "business",
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "Конечно! Вот подробный разбор.",
+        "negative": "Подробный разбор лежит в ADR.",
+        "boundary": "Конечно, это возможно."
+      }
+    },
+    {
+      "id": "soft.knowledge-disclaimer",
+      "label": "Assistant disclaimer о знаниях",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:на момент моего обучения|по состоянию на момент обновления (?:моей )?базы|в предоставленных результатах поиска|хотя конкретные детали ограничены)",
+      "hint": "Назвать конкретный missing source/data вместо biography assistant.",
+      "off_registers": [
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "На момент моего обучения данных не было.",
+        "negative": "На момент замера lag был нулевым.",
+        "boundary": "По состоянию на 1 августа rollout завершён."
+      }
+    },
+    {
+      "id": "soft.importance-puffery",
+      "label": "Раздувание значимости",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:является свидетельством|служит напоминанием|знаменует|закладывает основу|оставляет неизгладимый след|невозможно переоценить)",
+      "hint": "Показать source-backed effect вместо importance label.",
+      "off_registers": [
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "Релиз знаменует новую эру.",
+        "negative": "Флаг role задаёт роль пользователя.",
+        "boundary": "В спектакле у него важная роль."
+      }
+    },
+    {
+      "id": "soft.negative-parallelism",
+      "label": "Formulaic negative parallelism",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:не просто [^,.!?—]{2,50}[—-] (?:это )?|не только [^,.!?]{2,50},? но и|не столько [^,.!?]{2,50}, сколько)",
+      "hint": "Проверить, создаёт ли contrast факт или только pseudo-depth.",
+      "off_registers": [
+        "scientific",
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial; https://arxiv.org/html/2510.15061v2",
+      "examples": {
+        "positive": "Это не просто база — это фундамент.",
+        "negative": "Это не медленно, это не работает.",
+        "boundary": "Не только сегодня."
+      }
+    },
+    {
+      "id": "soft.tail-gerund",
+      "label": "Хвостовой оборот без нового факта",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i),\\s+(?:подч[её]ркива|обеспечива|отража|открыва|демонстрир|гарантир|усилива)\\w*я\\b",
+      "hint": "Удалить только если clause не добавляет реального action/consequence.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Сервис кэширует ответ, подчёркивая важность скорости.",
+        "negative": "Он шёл, прихрамывая на левую ногу.",
+        "boundary": "Сервис обеспечивает backpressure."
+      }
+    },
+    {
+      "id": "soft.bureaucratese",
+      "label": "Канцелярская конструкция",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:осуществля\\w+|производится обработка|в случае возникновения|при наличии необходимости|в целях обеспечения|в рамках реализации)\\b",
+      "hint": "Вернуть action verb, если это не defined/legal/scientific form.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal"
+      ],
+      "source": "Нора Галь, Слово живое и мёртвое",
+      "examples": {
+        "positive": "Осуществляется обработка запросов.",
+        "negative": "Реализация интерфейса лежит в package api.",
+        "boundary": "В целях договора термин определён ниже."
+      }
+    },
+    {
+      "id": "soft.dannyi-adjective",
+      "label": "Adjective «данный» без функции",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\bданн(?:ый|ая|ое|ого|ому|ом|ой|ую)\\b",
+      "hint": "Проверить замену на «этот» или deletion. Слово «данные» не затрагивается.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Данный сервис читает topic.",
+        "negative": "Данные лежат в S3.",
+        "boundary": "Этим данным соответствует ключ."
+      }
+    },
+    {
+      "id": "grammar.dangling-gerund",
+      "label": "Висячее деепричастие",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:^|[.!?]\\s+)(?:проанализировав|рассмотрев|изучив|сравнив|применив|обобщив|используя|анализируя|рассматривая|учитывая|сравнивая|применяя|изучая|обобщая|опираясь)[^,.!?]{0,60},\\s+[^.!?]{0,80}?\\b(?:был[аио]?|были|становится|получается|наблюдается|результат\\w*|эффективность|качество|производительность)\\b",
+      "hint": "Кандидат, не диагноз: правило не умеет находить подлежащее и срабатывает по слову-триггеру дальше в предложении. Решение принимается по карточке G23 (references/sentence.md).",
+      "off_registers": [],
+      "source": "русская грамматика",
+      "examples": {
+        "positive": "Используя этот метод, эффективность повышается.",
+        "negative": "Используя этот метод, команда ускорила import.",
+        "boundary": "После использования метода эффективность выросла."
+      }
+    },
+    {
+      "id": "grammar.punctuation-calque",
+      "label": "Пунктуационная калька",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?:^|[.!?]\\s+)Однако,\\s|(?:^|[.!?]\\s+)В \\d{4} году,\\s|(?:^|[.!?]\\s+)(?:Затем|Потом|Позже),\\s",
+      "hint": "Кандидат, не диагноз: правило смотрит на слово перед запятой и не видит, что идёт после неё. Обособленный оборот, уточняющий член и придаточное требуют этой запятой. Решение — по карточкам Z1, Z4, Z9, G28 (references/punctuation.md, references/sentence.md).",
+      "off_registers": [],
+      "source": "русская пунктуация",
+      "examples": {
+        "positive": "Однако, кэш не помог.",
+        "negative": "Однако кэш не помог.",
+        "boundary": "Он сказал: «Однако, возможно, поздно»"
+      }
+    },
+    {
+      "id": "soft.inanimate-intention",
+      "label": "Неодушевлённый субъект с намерением",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:исследовани\\w+|проект\\w*|платформ\\w+|решени\\w+|компани\\w+|продукт\\w*|инструмент\\w*)\\s+(?:подч[её]ркива|демонстрир|стремит|заботит|призван)\\w*\\b",
+      "hint": "Назвать actor/mechanism из source. Буквальное behavior системы не трогать.",
+      "off_registers": [
+        "technical",
+        "scientific",
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial; https://arxiv.org/html/2406.07016",
+      "examples": {
+        "positive": "Проект демонстрирует приверженность качеству.",
+        "negative": "Scheduler выбирает node.",
+        "boundary": "Система обеспечивает backpressure."
+      }
+    },
+    {
+      "id": "soft.stacked-hedging",
+      "label": "Каскад смягчений",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:возможно|вероятно|скорее всего|по-видимому|как правило|в некоторых случаях|при определ[её]нных условиях|может|могут|обычно)\\b[^.!?]{0,35}?\\b(?:возможно|вероятно|скорее всего|по-видимому|как правило|в некоторых случаях|при определ[её]нных условиях|может|могут|обычно)\\b[^.!?]{0,35}?\\b(?:возможно|вероятно|скорее всего|по-видимому|как правило|в некоторых случаях|при определ[её]нных условиях|может|могут|обычно)\\b",
+      "hint": "Оставить реальную uncertainty; repeated hedge сократить.",
+      "off_registers": [
+        "scientific",
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Возможно, в некоторых случаях это может помочь.",
+        "negative": "Возможно, retry поможет.",
+        "boundary": "Как правило, система может пережить один restart."
+      }
+    },
+    {
+      "id": "soft.self-declared-honesty",
+      "label": "Самомаркировка честности",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:вот честн\\w+|без воды|буду с вами откровенен|скажу без прикрас|объективный разбор|без маркетинга)",
+      "hint": "Убрать virtue label; факты и ограничения должны показать честность.",
+      "off_registers": [
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Вот честный список без воды.",
+        "negative": "Честно говоря, benchmark спорный.",
+        "boundary": "Объективный показатель равен 3."
+      }
+    },
+    {
+      "id": "soft.motivational-abstraction",
+      "label": "Мотивационная абстракция",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:раскры\\w+ потенциал|вывести на новый уровень|открыва\\w+ новые (?:горизонты|перспективы|возможности)|комплексн\\w+ (?:подход|решени)\\w*)",
+      "hint": "Назвать source-backed change или удалить claim.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Комплексный подход открывает новые горизонты.",
+        "negative": "Комплексный query использует два join.",
+        "boundary": "Открылось новое окно."
+      }
+    },
+    {
+      "id": "soft.negation-triad",
+      "label": "Триада-отрицание",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)\\b(?:без|ни) [^.!?]{1,20}[.!?]\\s+(?:без|ни) [^.!?]{1,20}[.!?]\\s+(?:только|просто) [^.!?]{1,30}",
+      "hint": "Проверить рекламный slogan; real requirements list сохранить.",
+      "off_registers": [
+        "legal",
+        "scientific",
+        "literary",
+        "personal",
+        "technical"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Без пафоса. Без воды. Только факты.",
+        "negative": "Без token файл не откроется.",
+        "boundary": "Ни один pod не упал."
+      }
+    },
+    {
+      "id": "soft.pseudo-therapy",
+      "label": "Псевдо-терапевтический register",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?i)(?:ты не ошибаешься,? что так чувствуешь|это не слабость,? это сила|ты имеешь право так чувствовать|ты всё ещё здесь,? ты настоящий)",
+      "hint": "Убрать из technical/general prose; personal support context проверить отдельно.",
+      "off_registers": [
+        "legal",
+        "personal",
+        "literary"
+      ],
+      "source": "editorial",
+      "examples": {
+        "positive": "Это не слабость, это сила.",
+        "negative": "Слабость алгоритма — O(n²).",
+        "boundary": "Пользователь имеет право удалить данные."
+      }
+    },
+    {
+      "id": "format.russian-title-case",
+      "label": "Russian heading в Title Case",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "(?m)^#{1,6}\\s+(?:[А-ЯЁ][а-яё]+\\s+){2,}[А-ЯЁ][а-яё]+\\s*$",
+      "hint": "Кандидат, не диагноз: имя собственное и брендовое написание сюда попадают законно. Решение — по карточке H8 (references/headings.md).",
+      "off_registers": [
+        "legal",
+        "literary",
+        "personal"
+      ],
+      "source": "https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing",
+      "examples": {
+        "positive": "## Основные Принципы Работы Системы",
+        "negative": "## Основные принципы работы системы",
+        "boundary": "## Москва и Санкт-Петербург"
+      }
+    }
+  ]
+}
