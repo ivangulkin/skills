@@ -31,22 +31,25 @@ tests и license.
 
 ## Архитектурное решение
 
-Остаётся один standalone implicit skill с machine ID `no-ai-slop`. Второй
-installed humanizer имел бы overlapping descriptions и конфликтовал бы при
-каждой русской правке. Repository root является skill folder; Codex и Claude
-ссылаются на него напрямую.
+**Действующее.** Один standalone skill с machine ID `ru`. Он покрывает и
+грамматику, и редакторский слой; отдельного humanizer'а рядом нет. Repository
+root является skill folder; Codex и Claude ссылаются на него напрямую.
+
+Причина одна: два installed humanizer'а имели бы overlapping descriptions и
+конфликтовали бы при каждой русской правке. Здесь goal один — точная русская
+prose для IT reader, поэтому Russian catalog, Terminology Lock и register matrix
+суть resources одного skill.
 
 [Официальная документация OpenAI](https://learn.chatgpt.com/docs/build-skills)
 говорит, что model сначала видит name/description и загружает instructions при
 match или direct invocation. Для local authoring она поддерживает standalone
 skill в `$HOME/.agents/skills` и symlinked folder; одноимённые skills не
-merge'ятся. Здесь goal один: точная русская prose для IT reader. Поэтому
-Russian catalog, Terminology Lock и register matrix — resources одного skill,
-а не несколько конкурирующих humanizer'ов.
+merge'ятся.
 
-ID сохранён ради existing install, symlink и `$no-ai-slop`. UI name может быть
-`No AI Slop RU`. Literal rename в `$no-ai-slop-ru` был бы breaking change и
-требовал бы атомарной миграции без alias/sibling.
+**Историческое, 2026-08.** До слияния machine ID был `no-ai-slop`, и он
+сохранялся ради existing install, symlink и `$no-ai-slop`. Это решение отменено:
+скилл переименован в `ru`, `no-ai-slop` удалён целиком, alias не оставлен.
+Ссылки на старое имя ниже по файлу и в `evals/results/` читать как исторические.
 
 ## Vladimir-Human/humanizer-ru
 
