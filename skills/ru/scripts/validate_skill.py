@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the standalone no-ai-slop skill layout and local references."""
+"""Validate the standalone ru skill layout, local references and rule IDs."""
 
 from __future__ import annotations
 
@@ -27,6 +27,23 @@ ALLOWED_FRONTMATTER = {
 }
 MAX_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
+
+# A rule heading looks like "## T17. …" or "### Z20. …". The prefix says which
+# reference file owns it; the whole tree shares one namespace, so a duplicate is
+# an error wherever the two copies live.
+RULE_HEADING = re.compile(r"^#{2,3} ([A-Z])(\d+)\.", re.MULTILINE)
+# A bare reference to a rule: `[T17]`, `T17`, `G9–G15` is a range and is left
+# alone because its endpoints are checked separately. Rule numbers are one or
+# two digits; the bound keeps DOIs and catalogue codes out — `S0266078418000512`
+# is not rule S0266078418000512.
+RULE_MENTION = re.compile(r"(?<![A-Za-z0-9])([A-Z])(\d{1,2})(?![0-9A-Za-z])")
+# F1–F8 live in a table in contracts.md rather than in headings; they are real
+# identifiers with no heading of their own.
+TABLE_ONLY_IDS = {f"F{n}" for n in range(1, 9)}
+# Archived records rather than routing documents: their own letter-and-digit
+# codes are priorities, not rules. Matched as an exact relative path so a
+# directory named "results" elsewhere in the tree is not silently exempt.
+ARCHIVE_PATHS = (("evals", "results"),)
 
 
 def _skill_files(root: Path) -> list[Path]:
@@ -151,16 +168,175 @@ def validate(root: Path = ROOT) -> list[str]:
 
     # Fixtures and eval inputs carry deliberately broken citation artifacts;
     # they are scanner input, not documentation.
+    markdown_files = _markdown_files(root)
+    for path in markdown_files:
+        for target in _broken_local_links(path):
+            errors.append(f"Broken local link in {path.relative_to(root)}: {target}")
+        for anchor in _broken_local_anchors(root, path):
+            errors.append(f"Broken anchor in {path.relative_to(root)}: {anchor}")
+
+    errors.extend(_rule_id_errors(root))
+
+    return errors
+
+
+def _markdown_files(root: Path) -> list[Path]:
     skipped = {".git", "__pycache__", "fixtures", "inputs"}
-    markdown_files = sorted(
+    return sorted(
         path
         for path in root.rglob("*.md")
         if not skipped.intersection(path.relative_to(root).parts)
     )
-    for path in markdown_files:
-        for target in _broken_local_links(path):
-            errors.append(f"Broken local link in {path.relative_to(root)}: {target}")
 
+
+def _without_code(text: str) -> str:
+    """Blank out fenced code so a heading inside a sample is not an anchor.
+
+    The lines are kept, blanked rather than deleted, so reported line numbers
+    and the shape of the file stay the same.
+    """
+    out: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in text.splitlines():
+        stripped = line.lstrip()
+        marker = re.match(r"(`{3,}|~{3,})", stripped)
+        if fence is None:
+            if marker:
+                fence = (marker.group(1)[0], len(marker.group(1)))
+            out.append("" if marker else line)
+            continue
+        # CommonMark: the closing fence uses the same character and is at least
+        # as long as the opening one, so ``` does not close ````.
+        # https://spec.commonmark.org/0.31.2/#fenced-code-blocks
+        if marker and marker.group(1)[0] == fence[0] and len(marker.group(1)) >= fence[1]:
+            fence = None
+        out.append("")
+    return "\n".join(out)
+
+
+def _slug(heading: str) -> str:
+    """GitHub-style anchor for a Markdown heading."""
+    text = heading.strip().lstrip("#").strip().lower()
+    text = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
+    return re.sub(r"\s+", "-", text)
+
+
+def _anchors(path: Path) -> set[str]:
+    text = _without_code(path.read_text(encoding="utf-8"))
+    anchors: set[str] = set()
+    # GitHub disambiguates repeated headings by appending -1, -2, ... in order
+    # of appearance: https://docs.github.com/en/get-started/writing-on-github/
+    # getting-started-with-writing-and-formatting-on-github/
+    # basic-writing-and-formatting-syntax#section-links
+    seen: dict[str, int] = {}
+    for line in text.splitlines():
+        if not line.lstrip().startswith("#"):
+            continue
+        base = _slug(line)
+        count = seen.get(base, 0)
+        candidate = base if count == 0 else f"{base}-{count}"
+        # A heading literally named "Note-1" can already own that anchor, so
+        # keep counting until the name is free — which is what GitHub does.
+        while candidate in anchors:
+            count += 1
+            candidate = f"{base}-{count}"
+        anchors.add(candidate)
+        seen[base] = count + 1
+    anchors |= set(re.findall(r'<a id="([^"]+)"', text))
+    return anchors
+
+
+def _broken_local_anchors(root: Path, path: Path) -> list[str]:
+    """Report links whose target file exists but whose #anchor does not."""
+    text = _without_code(path.read_text(encoding="utf-8"))
+    broken: list[str] = []
+    for raw_target in MARKDOWN_LINK.findall(text):
+        if "#" not in raw_target or "://" in raw_target:
+            continue
+        target, anchor = raw_target.split("#", 1)
+        if not anchor:
+            continue
+        destination = (path.parent / target).resolve() if target else path
+        if not destination.is_file() or destination.suffix != ".md":
+            continue
+        if anchor not in _anchors(destination):
+            broken.append(raw_target)
+    return broken
+
+
+def _rule_id_errors(root: Path) -> list[str]:
+    """Rule identifiers are unique across the tree and every mention resolves."""
+    references = root / "references"
+    if not references.is_dir():
+        return ["references/ is missing"]
+
+    errors: list[str] = []
+    # A rule may only be defined under references/, but a stray copy of the
+    # heading anywhere else is still a duplicate — that is what makes the id
+    # ambiguous. So definitions are collected from the whole tree.
+    searched = _markdown_files(root)
+    defined: dict[str, str] = {}
+    for path in searched:
+        text = _without_code(path.read_text(encoding="utf-8"))
+        for prefix, number in RULE_HEADING.findall(text):
+            rule = f"{prefix}{number}"
+            where = str(path.relative_to(root))
+            if rule in defined:
+                errors.append(
+                    f"Duplicate rule id {rule}: {defined[rule]} and {where}"
+                )
+            else:
+                defined[rule] = where
+                if path.parent != references:
+                    errors.append(
+                        f"Rule {rule} is defined outside references/: {where}"
+                    )
+
+    # F1-F8 have no heading of their own; they live in a table in contracts.md.
+    # Trusting the constant alone would let the table disappear unnoticed, so
+    # each one has to be found in that file.
+    contracts = references / "contracts.md"
+    contracts_text = (
+        _without_code(contracts.read_text(encoding="utf-8")) if contracts.is_file() else ""
+    )
+    # The id has to sit in a table row, not merely somewhere on the page:
+    # a sentence mentioning F1 must not keep the check green after the table
+    # itself is deleted.
+    table_rows = [
+        line for line in contracts_text.splitlines() if line.lstrip().startswith("|")
+    ]
+    table_ids = {
+        rule
+        for rule in TABLE_ONLY_IDS
+        if any(re.search(rf"(?<![A-Za-z0-9]){rule}(?![0-9A-Za-z])", row) for row in table_rows)
+    }
+    for rule in sorted(TABLE_ONLY_IDS - table_ids):
+        errors.append(f"Rule {rule} is claimed by the validator but absent from contracts.md")
+
+    known = set(defined) | table_ids
+    # Only prefixes that actually name rules; a stray "T3" inside a version
+    # string or an English word is not a reference.
+    prefixes = {rule[0] for rule in known}
+    # Archived reports use their own letter-and-digit codes — P0/P1/P2 there are
+    # priorities, not rule P0 — so they are read for duplicate definitions but
+    # not for references. Everything a reader is routed through stays in scope.
+    for path in searched:
+        parts = path.relative_to(root).parts
+        if any(parts[: len(prefix)] == prefix for prefix in ARCHIVE_PATHS):
+            continue
+        for line in _without_code(path.read_text(encoding="utf-8")).splitlines():
+            if RULE_HEADING.match(line):
+                continue
+            # Ranges like G9-G15 name their endpoints; both get checked.
+            for prefix, number in RULE_MENTION.findall(line):
+                if prefix not in prefixes:
+                    continue
+                rule = f"{prefix}{number}"
+                if rule not in known:
+                    errors.append(
+                        f"Dangling rule reference {rule} in "
+                        f"{path.relative_to(root)}"
+                    )
     return errors
 
 
