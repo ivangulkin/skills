@@ -27,9 +27,11 @@ import shutil
 VERIFIED_CODEX_VERSIONS = ("0.152.1", "0.153.0-alpha.5", "0.153.4")
 TESTED_CODEX_VERSION = VERIFIED_CODEX_VERSIONS[-1]
 
-# Where the Codex binary lives when ChatGPT.app ships it. `codex` is normally
-# absent from PATH, so the bundle path is tried first.
-BUNDLED_CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex")
+# Where the Codex binary lives when ChatGPT.app ships it. A Homebrew cask may
+# put a second one on PATH, and it is a different build, so the bundle is tried
+# first: the loop talks to the same binary the desktop app runs. The path moved
+# under codex-cli/ in ChatGPT.app 26.924.22138.
+BUNDLED_CODEX = Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex")
 
 # Hard backstop on a debate. Three is the ceiling every surveyed implementation
 # converged on; it is a backstop, not the mechanism — see STOP_HOLD_ROUNDS.
