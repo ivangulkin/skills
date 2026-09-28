@@ -11,7 +11,7 @@
 `verify` ругается на всё, чего в нём нет.
 
 ```bash
-CODEX=/Applications/ChatGPT.app/Contents/Resources/codex
+CODEX=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
 "$CODEX" app-server generate-json-schema --experimental --out /tmp/codex-proto
 "$CODEX" app-server generate-ts        --experimental --out /tmp/codex-proto-ts
 ```
