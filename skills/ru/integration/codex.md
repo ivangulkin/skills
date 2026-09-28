@@ -84,7 +84,7 @@ ls -l ~/.codex/skills/ru
 ```bash
 ls -l ~/.codex/skills/ru
 grep -c 'Apply the `ru` skill' ~/.codex/AGENTS.md
-CODEX=/Applications/ChatGPT.app/Contents/Resources/codex
+CODEX=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
 $CODEX debug prompt-input | grep -A80 'Available skills'   # дважды: первый прогон бывает холодным
 ```
 
