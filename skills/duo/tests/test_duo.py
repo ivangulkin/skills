@@ -159,9 +159,34 @@ class TestStoppingRule(EnvSandbox):
         self.assertFalse(d.finished)
 
     def test_agreement_on_the_last_round_is_not_called_a_failure(self) -> None:
-        d = decide(parse(verdict_json(findings=[finding(response="confirm")])),
+        d = decide(parse(verdict_json(findings=[finding(response="confirm", rationale="исправлено")])),
                    round_number=3, stop_streak=0, previous_unresolved=frozenset({"f1"}))
         self.assertEqual(d.outcome, AGREED_UNHELD)
+
+    def test_a_blocker_is_closed_only_by_its_id_with_a_rationale(self) -> None:
+        opened = decide(parse(verdict_json(stance="disagree", stop=False, findings=[finding(severity="p1")])),
+                        round_number=1, stop_streak=0, previous_unresolved=None)
+        self.assertFalse(opened.finished)
+        for closing in (
+            [],                                                    # the id just left out
+            [finding(severity="p1", response="retract")],          # a bare retract
+            [finding(severity="p1", response="confirm")],          # a bare confirm
+        ):
+            with self.subTest(closing=closing):
+                d = decide(parse(verdict_json(findings=closing)),
+                           round_number=2, stop_streak=0, previous_unresolved=frozenset({"f1"}),
+                           max_rounds=5)
+                self.assertEqual(d.stop_streak, 0, "незакрытый блокер дал согласный раунд")
+                self.assertIn("f1", d.reason)
+
+    def test_closing_with_a_rationale_still_needs_two_agreeing_rounds(self) -> None:
+        closed = decide(parse(verdict_json(findings=[finding(severity="p1", response="retract",
+                                                             rationale="ошибся в строке")])),
+                        round_number=2, stop_streak=0, previous_unresolved=frozenset({"f1"}), max_rounds=5)
+        self.assertEqual((closed.finished, closed.stop_streak), (False, 1))
+        held = decide(parse(verdict_json()), round_number=3, stop_streak=closed.stop_streak,
+                      previous_unresolved=frozenset(), max_rounds=5)
+        self.assertEqual(held.outcome, CONVERGED)
 
     def test_the_same_objections_twice_ends_it(self) -> None:
         d = decide(parse(verdict_json(stance="disagree", stop=False, findings=[finding()])),
@@ -2013,7 +2038,7 @@ class TestVerdictEdges(EnvSandbox):
         self.assertEqual(parsed.unresolved_ids(), frozenset({"a"}),
                          "повторённый id посчитан дважды")
         decision = verdict_mod.decide(parsed, round_number=2, stop_streak=0,
-                                      previous_unresolved=["a"], max_rounds=3, stop_hold=2)
+                                      previous_unresolved=[], max_rounds=3, stop_hold=2)
         self.assertFalse(decision.finished)
 
 
