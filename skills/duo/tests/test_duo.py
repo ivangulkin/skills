@@ -809,6 +809,18 @@ class TestCrashWindows(EnvSandbox):
         assert record is not None
         self.assertEqual(record.sandbox, "read-only")
 
+    def test_a_recovery_fork_carries_the_role(self) -> None:
+        os.environ["FAKE_CODEX_MODE"] = "accept_then_die"
+        dead = self.cli("--request-id", "req-1")
+        self.assertNotEqual(dead.returncode, 0)
+        os.environ["FAKE_CODEX_MODE"] = "busy_after_accept"   # Desktop opened it meanwhile
+        os.environ["FAKE_CODEX_FORK_ID"] = "01a0-recovery-fork"
+        self.watch()
+        alive = self.cli("--request-id", "req-1")
+        self.assertEqual(alive.returncode, 0, alive.stderr)
+        fork = next(c["params"] for c in self.seen() if c.get("method") == "thread/fork")
+        self.assertEqual(fork["developerInstructions"], consult.developer_instructions())
+
     def test_new_crash_after_intent_keeps_the_old_thread_owed(self) -> None:
         """previous_binding is read back: T1 is archived once T2 is confirmed."""
         first = self.cli("--request-id", "req-1")
@@ -2995,6 +3007,54 @@ class TestProtocolContract(EnvSandbox):
         answers = self.journal()["approval_answers"]
         self.assertEqual(answers, [{"decision": "decline"}])
         self.check("CommandExecutionRequestApprovalResponse.json", answers[0])
+
+
+class TestPhasePerTurn(EnvSandbox):
+    """The phase and the format travel with every turn, not in the thread's instructions."""
+
+    def test_dry_run_shows_the_resume_the_round_would_send(self) -> None:
+        run(self, request_id="req-1",
+            thread_options=options_mod.ThreadOptions(cwd=self.tmp, model="gpt-5.6-luna",
+                                                     sandbox="read-only"))
+        done = subprocess.run(
+            [sys.executable, str(PACKAGE), "ask", "--phase", "review", "--profile", "test",
+             "--message", "x", "--dry-run", "--session", SESSION, "--host-session", HOST],
+            capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(),
+            timeout=60, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        resume = next(c["params"] for c in json.loads(done.stdout)["calls"]
+                      if c.get("method") == "thread/resume")
+        self.assertEqual(resume["sandbox"], "read-only")
+        self.assertEqual(resume["developerInstructions"], consult.developer_instructions())
+
+    def test_each_context_value_fits_the_budget_and_says_it_replaces(self) -> None:
+        for phase in consult.PHASES:
+            for fmt in (consult.FORMAT_TRAILER, consult.FORMAT_JSON):
+                for key, entry in consult.phase_context(phase, fmt).items():
+                    with self.subTest(phase=phase, fmt=fmt, key=key):
+                        self.assertEqual(entry["kind"], "application")
+                        self.assertLessEqual(len(entry["value"].encode("utf-8")),
+                                             consult.CONTEXT_VALUE_MAX_BYTES)
+                        self.assertTrue(entry["value"].startswith("Это указание заменяет"))
+
+    def test_the_thread_gets_the_role_and_every_turn_the_phase(self) -> None:
+        self.watch()
+        calls: list[dict] = []   # the fake rewrites its record each process
+        for kwargs in ({"request_id": "req-1"},
+                       {"request_id": "req-2", "ack_request_id": "req-1", "phase": consult.REVIEW},
+                       {"request_id": "req-3", "ack_request_id": "req-2", "phase": consult.DESIGN}):
+            run(self, **kwargs)
+            calls += self.seen()
+        start = next(c["params"] for c in calls if c.get("method") == "thread/start")
+        self.assertEqual(start["developerInstructions"], consult.developer_instructions())
+        for resume in (c["params"] for c in calls if c.get("method") == "thread/resume"):
+            self.assertEqual(resume["developerInstructions"], consult.developer_instructions())
+        phases = [c["params"]["additionalContext"]["duo.phase"]["value"]
+                  for c in calls if c.get("method") == "turn/start"]
+        self.assertEqual(len(phases), 3)
+        self.assertIn("проектирование", phases[0])
+        self.assertIn("ревью сделанного", phases[1])
+        self.assertIn("проектирование", phases[2])
 
 
 class TestSupersededOriginal(EnvSandbox):

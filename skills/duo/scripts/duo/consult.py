@@ -193,19 +193,45 @@ def resolve_profile(name: str | None) -> Profile:
     return PROFILES[key]
 
 
-def developer_instructions(phase: str, verdict_format: str = FORMAT_TRAILER) -> str:
-    """The opponent's role, the phase brief, and the answer contract."""
+def developer_instructions() -> str:
+    """The opponent's role: the same for every phase and every round."""
+    return _ROLE
+
+
+# Codex truncates an `additionalContext` value past 1000 approximate tokens,
+# which is 4000 UTF-8 bytes in 0.160.1; at or under that it is kept whole.
+CONTEXT_VALUE_MAX_BYTES = 4000
+
+
+def phase_context(phase: str, verdict_format: str = FORMAT_TRAILER) -> dict[str, dict[str, str]]:
+    """The phase and the answer format, sent with every turn.
+
+    Developer instructions reach the model when the thread starts; a resumed
+    thread keeps the ones in its history, whatever `thread/resume` passes. So
+    the phase and the format travel on each turn as developer-role context,
+    and each says that it replaces what duo said before about the same thing:
+    older values stay in the history.
+    """
     if phase not in _PHASE_BRIEF:
         raise ConsultError(f"unknown phase {phase!r}; expected one of {', '.join(PHASES)}")
     contract = TRAILER_CONTRACT if verdict_format == FORMAT_TRAILER else _FORMAT_JSON_NOTE
-    return f"{_ROLE}\n{_PHASE_BRIEF[phase]}\n{contract}"
+    return {
+        "duo.phase": {
+            "kind": "application",
+            "value": "Это указание заменяет прежние указания duo о фазе.\n" + _PHASE_BRIEF[phase],
+        },
+        "duo.format": {
+            "kind": "application",
+            "value": "Это указание заменяет прежние указания duo о формате ответа.\n" + contract,
+        },
+    }
 
 
 def frame_message(phase: str, message: str) -> str:
-    """Repeat the phase on every turn.
+    """Name the phase in the message itself, next to its `duo.phase` context.
 
-    ``developerInstructions`` is set once at thread creation, but both loops
-    share one thread, so the review turns have to say which phase they are.
+    Both loops share one thread, so a reader of the thread in Desktop sees
+    which phase each turn belongs to.
     """
     label = "ПРОЕКТИРОВАНИЕ" if phase == DESIGN else "РЕВЬЮ СДЕЛАННОГО"
     return f"[{label}]\n\n{message.strip()}\n"
@@ -419,7 +445,8 @@ class RecoveryWaitExhausted(ConsultError):
 
 
 def resume_thread(server: AppServer, thread_id: str, cwd: Path, sandbox: str | None) -> None:
-    params: dict[str, Any] = {"threadId": thread_id, "cwd": str(cwd), "excludeTurns": True}
+    params: dict[str, Any] = {"threadId": thread_id, "cwd": str(cwd), "excludeTurns": True,
+                              "developerInstructions": developer_instructions()}
     if sandbox is not None:
         # Codex does not restore an unnamed sandbox on resume.
         params["sandbox"] = sandbox
@@ -725,6 +752,10 @@ def run_round(
     key, lock_keys = route.key, route.locked
     framed = frame_message(phase, message)
     message_hash = sha256(framed)
+    # Before any path can start, resume or fork a thread: recovery forks too.
+    if thread_options.developer_instructions is None:
+        thread_options.developer_instructions = developer_instructions()
+    turn_options.additional_context = phase_context(phase, verdict_format)
 
     with st.lock_many(lock_keys):
         settled = settle_migrations(route, claude_session_id)
@@ -897,8 +928,6 @@ def run_round(
                 f"(current directory is {thread_options.cwd})",
             )
 
-        if thread_options.developer_instructions is None:
-            thread_options.developer_instructions = developer_instructions(phase, verdict_format)
         if turn_options.output_schema is None and verdict_format == FORMAT_JSON:
             turn_options.output_schema = VERDICT_SCHEMA
         turn_options.client_user_message_id = request_id

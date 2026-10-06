@@ -52,9 +52,10 @@ OUT=$(mktemp -d); "$CODEX" app-server generate-json-schema --experimental --out 
 initialize   {clientInfo:{name,version,title?}, capabilities:null}
 initialized  — уведомление, без params вообще (в схеме у него только method)
 thread/start {cwd, ephemeral:false, [sandbox, approvalPolicy — только по флагу, иначе из config.toml], model,
-              developerInstructions}          -> {thread:{id}, ...}
+              developerInstructions — роль оппонента}  -> {thread:{id}, ...}
 turn/start   {threadId, input:[{type:"text",text,text_elements:[]}],
-              model, effort, serviceTierForTurn, outputSchema}
+              model, effort, serviceTierForTurn, outputSchema,
+              additionalContext:{duo.phase, duo.format}}
                                               -> {turn:{id, status}}
 thread/name/set {threadId, name}              -> {}
 ```
@@ -166,8 +167,8 @@ ChatGPT.app) берёт `thread-writer-locks/<id>.lock` и **не отдаёт**
 `outputSchema` заставляет весь финальный ответ быть JSON — и ровно это видит
 человек в окне Desktop: `{"confidence":"high","findings":[...`. Для читаемого
 треда ответ должен быть прозой. Отсюда формат `trailer` по умолчанию: проза,
-затем один блок ```json с вердиктом, без `outputSchema`; контракт формата живёт
-в `developerInstructions`. Разбор берёт **последний** fenced-блок, потому что
+затем один блок ```json с вердиктом, без `outputSchema`; контракт формата идёт
+с каждым ходом в `additionalContext` `duo.format`. Разбор берёт **последний** fenced-блок, потому что
 проза может цитировать JSON раньше. Формат `json` оставлен для слабых моделей,
 которые контракт не держат.
 
@@ -230,3 +231,21 @@ shell в Claude уплывает после `cd`, и в 23 из 56 транск�
 `thread/name/set` работает и на треде под чужим writer-lock, поэтому имя
 синхронизируется каждый настоящий раунд без сравнения с состоянием: состояние
 не видит переименования в Desktop.
+
+## Фаза и формат идут с каждым ходом
+
+Измерено чтением исходника `rust-v0.160.1` 06.10.2026. `developerInstructions`
+доходят до модели только при полной сборке контекста: на свежем треде, после
+сжатия, в новом окне. Возобновлённый тред восстанавливает прежние сообщения из
+rollout и держит старые инструкции, что бы ни передал `thread/resume`. Поэтому
+в инструкциях треда только роль оппонента — она одна на все фазы, — а фаза и
+формат ответа идут в каждом `turn/start` двумя записями `additionalContext` с
+`kind: application`: `duo.phase` и `duo.format`. Сервер превращает их в
+сообщения с ролью developer.
+
+Сервер помнит последнюю карту и шлёт запись, только если она изменилась. Duo
+держит процесс на один раунд, после холодного возобновления карта пустая, и обе
+записи уходят каждый раунд и остаются в истории — около 2,5 КБ за раунд.
+Поэтому каждая начинается фразой, что она заменяет прежние указания duo о том
+же. Значение длиннее 4000 байт UTF-8 сервер режет посередине; тест держит обе
+записи в этом бюджете.
