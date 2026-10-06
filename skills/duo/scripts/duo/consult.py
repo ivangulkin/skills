@@ -393,16 +393,6 @@ def mark_superseded(server: AppServer, thread_id: str, name: str) -> bool:
     return set_thread_name(server, thread_id, SUPERSEDED_PREFIX + name)
 
 
-def delete_thread(server: AppServer, thread_id: str) -> bool:
-    """Remove a thread whose every turn already lives in our fork."""
-    try:
-        server.request("thread/delete", {"threadId": thread_id})
-    except AppServerError as exc:
-        say(f"could not delete superseded thread {thread_id}: {exc}")
-        return False
-    return True
-
-
 def archive_thread(server: AppServer, thread_id: str) -> bool:
     try:
         server.request("thread/archive", {"threadId": thread_id})
@@ -410,7 +400,7 @@ def archive_thread(server: AppServer, thread_id: str) -> bool:
         if exc.is_missing_thread:
             # Never materialised: nothing is in the sidebar to archive.
             return True
-        say(f"could not archive previous thread {thread_id}: {exc}")
+        say(f"could not archive thread {thread_id}: {exc}")
         return False
     return True
 
@@ -1131,7 +1121,7 @@ def _fork_held_thread(
     record.forked_from = source
     record.thread_id = forked_id
     record.rollout_materialized = False
-    record.supersede_debt.append(source)
+    record.archive_debt.append(source)
     st.save(key, record)
     set_thread_name(server, forked_id, record.thread_name)
     # The original cannot be archived or deleted while Desktop holds it, but
@@ -1140,42 +1130,34 @@ def _fork_held_thread(
     mark_superseded(server, source, record.thread_name)
     say(
         f"thread {source} is held by Codex Desktop; forked it into {forked_id} with "
-        "the full history. The original is marked old and will be deleted once Desktop lets go",
+        "the full history. The original is marked old and will be archived once Desktop lets "
+        f"go; anything written into it after the fork stays there, not in {forked_id}",
     )
 
 
 def _settle_archive_debt(server: AppServer, key: str, record: SessionState, keep_old: bool) -> None:
     """Settle what earlier rounds could not.
 
-    A replaced binding (`--new`) is archived: nothing else holds its history.
-    A forked original is deleted: our fork holds every turn of it, and a
-    second thread under the chat's name is exactly what the human asked never
-    to see. While Desktop still holds it, the delete is refused and the thread
-    stays marked old; each round tries again.
+    A replaced binding (`--new`) and an original forked because Desktop held
+    it are both archived, never deleted: the human may have written into the
+    original after the fork, and the archive keeps that. While Desktop still
+    holds a thread, archiving is refused and the next round tries again.
     """
-    if keep_old:
+    if keep_old or not record.archive_debt:
         return
-    changed = False
-    if record.archive_debt:
-        remaining: list[str] = []
-        for thread_id in dict.fromkeys(record.archive_debt):
-            if thread_id == record.thread_id or archive_thread(server, thread_id):
-                continue
-            remaining.append(thread_id)
-        if remaining != record.archive_debt:
-            record.archive_debt = remaining
-            changed = True
-    if record.supersede_debt:
-        remaining = []
-        for thread_id in dict.fromkeys(record.supersede_debt):
-            if thread_id == record.thread_id or delete_thread(server, thread_id):
-                continue
-            mark_superseded(server, thread_id, record.thread_name)
-            remaining.append(thread_id)
-        if remaining != record.supersede_debt:
-            record.supersede_debt = remaining
-            changed = True
-    if changed:
+    remaining: list[str] = []
+    for thread_id in dict.fromkeys(record.archive_debt):
+        if thread_id == record.thread_id:
+            continue
+        if archive_thread(server, thread_id):
+            say(f"archived thread {thread_id}; it stays in Codex's archive")
+            continue
+        # Still held. The mark set at fork time can have failed once; renaming
+        # works under the lock, so make sure it reads as old.
+        mark_superseded(server, thread_id, record.thread_name)
+        remaining.append(thread_id)
+    if remaining != record.archive_debt:
+        record.archive_debt = remaining
         st.save(key, record)
 
 
@@ -1341,7 +1323,7 @@ def repair_redirect(key: str, destination: str | None) -> str | None:
             # A binding is not only `thread_id`. An unconfirmed creation
             # remembers the thread it was replacing, and a debt names threads
             # nobody else knows about; both would go behind the redirect.
-            owed = list(local.archive_debt) + list(local.supersede_debt)
+            owed = list(local.archive_debt)
             previous = (local.creating.previous_binding or {}).get("thread_id") if local.creating else None
             if previous:
                 owed.append(str(previous))
@@ -1381,7 +1363,7 @@ def close(
             previous = (record.creating.previous_binding or {}).get("thread_id")
             if previous and previous != record.thread_id:
                 record.archive_debt.append(str(previous))
-        if archive and (record.thread_id or record.archive_debt or record.supersede_debt):
+        if archive and (record.thread_id or record.archive_debt):
             with AppServer(codex_binary(), Path(record.cwd or ".")) as server:
                 server.initialize()
                 # Debts first: those ids exist nowhere else, so discarding the
@@ -1389,7 +1371,7 @@ def close(
                 # happens either — closing is all or nothing, or the binding
                 # would point at a thread that is already archived.
                 _settle_archive_debt(server, key, record, keep_old=False)
-                stuck = list(record.archive_debt) + list(record.supersede_debt)
+                stuck = list(record.archive_debt)
                 if not stuck and record.thread_id and not archive_thread(server, record.thread_id):
                     stuck.append(record.thread_id)
                 if stuck:
