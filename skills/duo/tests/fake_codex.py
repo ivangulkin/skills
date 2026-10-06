@@ -34,7 +34,8 @@ Behaviour is chosen by ``FAKE_CODEX_MODE``:
 memory only, which is enough for single-process tests.
 ``FAKE_CODEX_THREAD_ID`` pins the id of the next created thread.
 ``FAKE_CODEX_SEEN`` dumps every request received, for assertions.
-``FAKE_CODEX_PAGE_SIZE`` caps a ``thread/list`` page, so pagination is exercised.
+``FAKE_CODEX_PAGE_SIZE`` caps a ``thread/list`` and a ``thread/turns/list`` page.
+``FAKE_CODEX_TURNS_FAIL_PAST_FIRST`` fails any ``thread/turns/list`` page after the first.
 ``FAKE_CODEX_LIST_FAILS`` makes ``thread/list`` fail, as a server under load can.
 ``FAKE_CODEX_VERDICT_FILE`` reads the final message from a file, for answers too
 large for the environment.
@@ -393,8 +394,14 @@ def serve() -> int:
             turns = list(rec.get("turns", []))
             if params.get("sortDirection", "desc") == "desc":
                 turns.reverse()
-            limit = int(params.get("limit") or 50)
-            respond(request_id, {"data": [turn_view(t) for t in turns[:limit]], "nextCursor": None})
+            start = int(params.get("cursor") or 0)
+            if start and os.environ.get("FAKE_CODEX_TURNS_FAIL_PAST_FIRST"):
+                fail(request_id, -32603, "turn history page unavailable")
+                continue
+            size = min(int(params.get("limit") or 50), int(os.environ.get("FAKE_CODEX_PAGE_SIZE") or 10**6))
+            page = turns[start:start + size]
+            nxt = str(start + size) if start + size < len(turns) else None
+            respond(request_id, {"data": [turn_view(t) for t in page], "nextCursor": nxt})
         elif method == "project/list":
             # Desktop projects, as `project/list` reports them. Not in the
             # published schema; the real server answers it on 0.153.4.

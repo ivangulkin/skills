@@ -601,28 +601,49 @@ class AppServer:
 
         return record
 
-    def list_turns(self, thread_id: str, *, limit: int = 1) -> list[dict[str, Any]]:
-        """Newest turns first, with full items.
+    def find_turn(
+        self, thread_id: str, client_id: str, turn_id: str | None = None
+    ) -> dict[str, Any] | None:
+        """The turn whose user message carries `client_id`, with full items.
 
         Used to find out what happened to a turn whose result this process
-        never saw: the last `userMessage.clientId` says whether our request
-        was accepted, `turn.status` says how it ended, and the items carry
-        the answer if there is one.
+        never saw: a match says our request was accepted, `turn.status` says
+        how it ended, and the items carry the answer if there is one.
+
+        Every page is read, newest first: the human may have started a turn
+        after ours, so ours is not necessarily the last. A page that is not a
+        list of turns is an error, never "not found" — "not found" is what
+        licenses sending the request again. With `turn_id`, only that turn
+        matches: the schema does not promise one turn per `clientId`.
         """
-        result = self.request(
-            "thread/turns/list",
-            {
-                "threadId": thread_id,
-                "cursor": None,
-                "limit": limit,
-                "sortDirection": "desc",
-                "itemsView": "full",
-            },
-        )
-        if not isinstance(result, dict):
-            return []
-        turns = result.get("data")
-        return [t for t in turns if isinstance(t, dict)] if isinstance(turns, list) else []
+        cursor = None
+        while True:
+            result = self.request(
+                "thread/turns/list",
+                {
+                    "threadId": thread_id,
+                    "cursor": cursor,
+                    "limit": 20,
+                    "sortDirection": "desc",
+                    "itemsView": "full",
+                },
+            )
+            turns = result.get("data") if isinstance(result, dict) else None
+            cursor = result.get("nextCursor") if isinstance(result, dict) else None
+            if (
+                not isinstance(turns, list)
+                or not all(isinstance(t, dict) and isinstance(t.get("items"), list) for t in turns)
+                or not (cursor is None or isinstance(cursor, str))
+            ):
+                raise AppServerError("thread/turns/list", 0, "the answer is not a page of turns")
+            for turn in turns:
+                user = next((i for i in turn["items"] if isinstance(i, dict) and i.get("type") == "userMessage"), None)
+                if user is not None and user.get("clientId") == client_id and (
+                    turn_id is None or turn.get("id") == turn_id
+                ):
+                    return turn
+            if not cursor:
+                return None
 
     def _interrupt_quietly(self, thread_id: str, turn_id: str | None) -> None:
         """Best effort: an interrupt that fails must not mask the timeout."""

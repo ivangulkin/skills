@@ -19,6 +19,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 SKILL_ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = SKILL_ROOT / "scripts" / "duo"
@@ -706,6 +707,81 @@ class TestCrashWindows(EnvSandbox):
         payload = json.loads(alive.stdout)
         self.assertTrue(payload["resumed"])
         self.assertEqual(self.all_turns(), 1)
+
+    def _accepted_then_a_human_turn(self) -> str:
+        """Our request accepted and lost; the human then took a turn of their own."""
+        os.environ["FAKE_CODEX_MODE"] = "accept_then_die"
+        dead = self.cli("--request-id", "req-1")
+        self.assertNotEqual(dead.returncode, 0)
+        os.environ["FAKE_CODEX_MODE"] = "ok"
+        data = self.journal()
+        thread_id = next(iter(data["threads"]))
+        data["threads"][thread_id]["turns"].append(
+            {"id": "t-human", "client_id": None, "input": "человек", "status": "completed",
+             "result": verdict_json()})
+        (self.tmp / "journal.json").write_text(json.dumps(data), encoding="utf-8")
+        os.environ["FAKE_CODEX_PAGE_SIZE"] = "1"   # ours is on the second page
+        return thread_id
+
+    def test_an_accepted_turn_behind_a_newer_one_is_found_not_resent(self) -> None:
+        self._accepted_then_a_human_turn()
+        alive = self.cli("--request-id", "req-1")
+        self.assertEqual(alive.returncode, 0, alive.stderr)
+        self.assertTrue(json.loads(alive.stdout)["resumed"])
+        self.assertEqual(self.all_turns(), 2, "запрос отправлен второй раз")
+
+    def test_a_malformed_history_page_is_an_error_not_not_found(self) -> None:
+        class Page(appserver.AppServer):
+            def __init__(self, page: object) -> None:
+                self.page = page
+
+            def request(self, method: str, params: dict) -> object:
+                return self.page
+
+        for page in ({"data": [None], "nextCursor": None},
+                     {"data": [{"id": "t", "status": "completed", "items": "broken"}], "nextCursor": None},
+                     {"data": [], "nextCursor": 5},
+                     {"nextCursor": None}):
+            with self.subTest(page=page), self.assertRaises(appserver.AppServerError):
+                Page(page).find_turn("01a0-thread", "req-1")
+
+    def test_waiting_stays_on_the_turn_found_first(self) -> None:
+        def turn(turn_id: str, status: str, text: str) -> dict:
+            items = [{"type": "userMessage", "clientId": "req-1"}]
+            if status == "completed":
+                items.append({"type": "agentMessage", "text": text, "phase": "final_answer"})
+            return {"id": turn_id, "status": status, "items": items}
+
+        class Pages(appserver.AppServer):
+            def __init__(self) -> None:
+                self.pages = [
+                    {"data": [turn("A", "inProgress", "")], "nextCursor": None},
+                    # B shows up with the same clientId, newer than A.
+                    {"data": [turn("B", "completed", "ответ B"), turn("A", "completed", "ответ A")],
+                     "nextCursor": None},
+                ]
+
+            def request(self, method: str, params: dict) -> object:
+                return self.pages.pop(0) if len(self.pages) > 1 else self.pages[0]
+
+        record = make_state()
+        record.open_request = st.OpenRequest(request_id="req-1", phase="design", message_sha256="x",
+                                             status="pending", started_at=st.now_iso())
+        with unittest.mock.patch("time.sleep"):
+            payload = consult._recover_from_history(Pages(), record, idle_timeout=60)
+        assert payload is not None
+        self.assertEqual(payload["turn_id"], "A")
+        self.assertEqual(payload["final_text"], "ответ A")
+
+    def test_a_failed_history_page_keeps_the_request_pending(self) -> None:
+        self._accepted_then_a_human_turn()
+        os.environ["FAKE_CODEX_TURNS_FAIL_PAST_FIRST"] = "1"
+        broken = self.cli("--request-id", "req-1")
+        self.assertNotEqual(broken.returncode, 0)
+        self.assertEqual(self.all_turns(), 2, "ошибка чтения истории сочтена за «не принят»")
+        record = st.load(HOST)
+        assert record is not None and record.open_request is not None
+        self.assertEqual(record.open_request.request_id, "req-1")
 
     def test_new_crash_after_intent_keeps_the_old_thread_owed(self) -> None:
         """previous_binding is read back: T1 is archived once T2 is confirmed."""

@@ -660,13 +660,8 @@ def _recover_from_history(
     open_request = record.open_request
     if open_request is None or record.thread_id is None:
         return None
-    turns = server.list_turns(record.thread_id, limit=1)
-    if not turns:
-        return None
-    turn = turns[0]
-    items = turn.get("items") or []
-    user = next((i for i in items if isinstance(i, dict) and i.get("type") == "userMessage"), None)
-    if user is None or user.get("clientId") != open_request.request_id:
+    turn = server.find_turn(record.thread_id, open_request.request_id)
+    if turn is None:
         return None
 
     import time
@@ -675,10 +670,14 @@ def _recover_from_history(
     deadline = started + idle_timeout
     while turn.get("status") == "inProgress" and time.monotonic() < deadline:
         time.sleep(2)
-        turns = server.list_turns(record.thread_id, limit=1)
-        if not turns:
-            break
-        turn = turns[0]
+        # Pinned to the turn found first, whatever else carries the same id.
+        again = server.find_turn(record.thread_id, open_request.request_id, turn.get("id"))
+        if again is None:
+            raise ConsultError(
+                f"turn {turn.get('id')} of request {open_request.request_id} left the thread's "
+                "history while we waited on it; nothing was resent"
+            )
+        turn = again
     if turn.get("status") == "inProgress":
         # Waiting is not interrupting: the turn keeps running, pending stays.
         raise RecoveryWaitExhausted(open_request.request_id, time.monotonic() - started)
