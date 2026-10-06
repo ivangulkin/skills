@@ -176,8 +176,11 @@ python3 "$DUO" ask --phase design --message-file "$TMPDIR/b2.md" \
 расход токенов. Прерывается только **молчание**: ни одного сообщения от Codex
 дольше `--idle-timeout`. Жёсткий `--timeout` — для тех, кому нужен потолок.
 
-Полная поверхность протокола — `ask --help`: `--sandbox`, `--approval-policy`, `--permissions`, `--add-dir`, `-c KEY=VALUE`,
-`--developer-instructions-file`, `--history-mode`, `--ephemeral` и остальные.
+Песочница треда — `--sandbox read-only|workspace-write|danger-full-access`; без
+флага действует конфигурация Codex. Она задаётся при создании треда и
+передаётся заново при каждом возобновлении и форке: сам Codex безымянную
+песочницу при возобновлении не восстанавливает. Других флагов протокола у
+`ask` нет: их никто не передавал, и 06.10.2026 они удалены.
 
 `--dry-run` печатает ровно те JSON-RPC вызовы, что ушли бы в сокет.
 

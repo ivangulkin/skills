@@ -78,10 +78,8 @@ PHASES = (DESIGN, REVIEW)
 # laptop `sandbox_mode = "workspace-write"`, `approval_policy = "on-request"`,
 # `approvals_reviewer = "auto_review"`, which is what Desktop calls "Approve
 # for me". Approvals are then settled by Codex's own reviewer, and nobody has
-# to sit and click; duo still declines whatever reaches the client. The flags
-# override per thread when a tighter or looser box is wanted.
-SANDBOX: str | None = None
-APPROVAL_POLICY: str | None = None
+# to sit and click; duo still declines whatever reaches the client.
+# `--sandbox` pins a tighter or looser box for one thread.
 
 # Test hook: when this names the point about to be passed, the process dies
 # there with SIGKILL semantics. Off unless the variable is set; production
@@ -362,14 +360,7 @@ def fork_thread(server: AppServer, source_id: str, options: ThreadOptions) -> st
     turn — Codex's own objections included — into a thread nobody holds.
     """
     params = options.to_params()
-    params.pop("cwd", None)
-    params.pop("ephemeral", None)
-    params = {k: v for k, v in params.items() if k in (
-        "sandbox", "approvalPolicy", "permissions", "approvalsReviewer", "model",
-        "modelProvider", "developerInstructions", "baseInstructions", "config",
-        "runtimeWorkspaceRoots", "serviceTier", "threadSource",
-    )}
-    params.update({"threadId": source_id, "cwd": str(options.cwd), "ephemeral": False})
+    params["threadId"] = source_id
     result = server.request("thread/fork", params)
     if not isinstance(result, dict):
         raise ConsultError("thread/fork returned something that is not an object")
@@ -424,11 +415,13 @@ class RecoveryWaitExhausted(ConsultError):
         )
 
 
-def resume_thread(server: AppServer, thread_id: str, cwd: Path) -> None:
+def resume_thread(server: AppServer, thread_id: str, cwd: Path, sandbox: str | None) -> None:
+    params: dict[str, Any] = {"threadId": thread_id, "cwd": str(cwd), "excludeTurns": True}
+    if sandbox is not None:
+        # Codex does not restore an unnamed sandbox on resume.
+        params["sandbox"] = sandbox
     try:
-        server.request(
-            "thread/resume", {"threadId": thread_id, "cwd": str(cwd), "excludeTurns": True}
-        )
+        server.request("thread/resume", params)
     except AppServerError as exc:
         if exc.is_busy_thread:
             raise ThreadHeld(
@@ -781,7 +774,7 @@ def run_round(
                     with AppServer(codex_binary(), Path(record.cwd)) as server:
                         server.initialize()
                         try:
-                            resume_thread(server, record.thread_id, Path(record.cwd))
+                            resume_thread(server, record.thread_id, Path(record.cwd), record.sandbox)
                         except ThreadUnmaterialised:
                             recovered = None
                         except ThreadHeld:
@@ -872,7 +865,8 @@ def run_round(
                     f"this creation was started in {record.cwd}, which no longer exists; "
                     "start over with --new --cwd <directory> --request-id <new id>"
                 )
-            thread_options = replace(thread_options, cwd=cwd)
+            # The creation goes on as it was started, in its box as well as its directory.
+            thread_options = replace(thread_options, cwd=cwd, sandbox=record.sandbox)
         else:
             cwd = thread_options.cwd if record is None or not record.cwd else Path(record.cwd)
         if not creating_now and not continuing and record is not None and record.cwd and not cwd.is_dir():
@@ -921,7 +915,7 @@ def run_round(
             needs_thread = record is None or force_new or record.thread_id is None
             if not needs_thread:
                 try:
-                    resume_thread(server, record.thread_id, cwd)
+                    resume_thread(server, record.thread_id, cwd, record.sandbox)
                 except ThreadUnmaterialised:
                     if record.rollout_materialized:
                         raise
@@ -950,6 +944,7 @@ def run_round(
                     updated_at=now_iso(),
                     model=turn_options.model,
                     effort=turn_options.effort,
+                    sandbox=thread_options.sandbox,
                     codex_version=codex_version(binary),
                     creating=Creating(
                         request_id=request_id,
@@ -1114,7 +1109,7 @@ def _fork_held_thread(
             "the fork would land in a different repository. Restore it, or start a new "
             "thread with --new"
         )
-    fork_options = replace(options, cwd=recorded)
+    fork_options = replace(options, cwd=recorded, sandbox=record.sandbox)
     forked_id = fork_thread(server, source, fork_options)
     crash_point("after_fork_response")
     record.forked_from = source

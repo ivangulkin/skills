@@ -397,9 +397,7 @@ class TestMigration(EnvSandbox):
 
 def run(case: EnvSandbox, **kwargs: object) -> consult.RoundOutcome:
     profile = consult.resolve_profile(str(kwargs.pop("profile", "test")))
-    thread = options_mod.ThreadOptions(
-        cwd=case.tmp, model=profile.model, sandbox=consult.SANDBOX, approval_policy=consult.APPROVAL_POLICY,
-    )
+    thread = options_mod.ThreadOptions(cwd=case.tmp, model=profile.model)
     turn = options_mod.TurnOptions(
         model=profile.model, effort=profile.effort, service_tier_for_turn=profile.service_tier,
     )
@@ -573,6 +571,22 @@ class TestRound(EnvSandbox):
         # The held original cannot be archived while held; it is owed.
         self.assertIn(first.record.thread_id, second.record.archive_debt)
         self.assertEqual(second.record.phase("design").rounds, 1)
+
+    def test_the_creation_sandbox_follows_the_thread_into_resume_and_fork(self) -> None:
+        """Codex does not restore an unnamed sandbox; duo sends it again."""
+        first = run(self, request_id="req-1",
+                    thread_options=options_mod.ThreadOptions(cwd=self.tmp, model="gpt-5.6-luna",
+                                                             sandbox="read-only"))
+        self.assertEqual(first.record.sandbox, "read-only")
+        self.watch()
+        run(self, request_id="req-2", ack_request_id="req-1")
+        resume = next(c for c in self.seen() if c.get("method") == "thread/resume")
+        self.assertEqual(resume["params"]["sandbox"], "read-only")
+        os.environ["FAKE_CODEX_MODE"] = "busy"
+        os.environ["FAKE_CODEX_BUSY_ID"] = first.record.thread_id
+        run(self, request_id="req-3", ack_request_id="req-2")
+        fork = next(c for c in self.seen() if c.get("method") == "thread/fork")
+        self.assertEqual(fork["params"]["sandbox"], "read-only")
 
     def test_no_fork_fails_loudly(self) -> None:
         first = run(self, request_id="req-1")
@@ -783,6 +797,18 @@ class TestCrashWindows(EnvSandbox):
         assert record is not None and record.open_request is not None
         self.assertEqual(record.open_request.request_id, "req-1")
 
+    def test_a_creation_resumed_after_a_crash_keeps_its_sandbox(self) -> None:
+        dead = self.cli("--request-id", "req-1", "--sandbox", "read-only", crash_at="after_creating_intent")
+        self.assertEqual(dead.returncode, 137)
+        self.watch()
+        alive = self.cli("--request-id", "req-1")   # the same request, without the flag
+        self.assertEqual(alive.returncode, 0, alive.stderr)
+        start = next(c["params"] for c in self.seen() if c.get("method") == "thread/start")
+        self.assertEqual(start.get("sandbox"), "read-only", "повтор создания потерял песочницу")
+        record = st.load(HOST)
+        assert record is not None
+        self.assertEqual(record.sandbox, "read-only")
+
     def test_new_crash_after_intent_keeps_the_old_thread_owed(self) -> None:
         """previous_binding is read back: T1 is archived once T2 is confirmed."""
         first = self.cli("--request-id", "req-1")
@@ -930,11 +956,6 @@ class TestCli(EnvSandbox):
         start = self.call(self.dry("--context-window", "200000"), "thread/start")["params"]
         self.assertEqual(start["config"]["model_context_window"], 200000)
 
-    def test_permissions_with_sandbox_is_refused(self) -> None:
-        done = self.run_cli("ask", "--phase", "design", "--message", "x", "--dry-run",
-                            "--permissions", "p", "--sandbox", "read-only")
-        self.assertEqual(done.returncode, 2)
-
     def test_trailer_is_the_default_and_json_is_available(self) -> None:
         self.assertNotIn("outputSchema", self.call(self.dry(), "turn/start")["params"])
         self.assertEqual(self.call(self.dry("--verdict-format", "json"), "turn/start")["params"]["outputSchema"]["type"], "object")
@@ -1051,12 +1072,18 @@ class TestPermissionsInherit(EnvSandbox):
         for key in ("sandbox", "approvalPolicy", "approvalsReviewer", "permissions"):
             self.assertNotIn(key, params, f"{key} навязан вопреки конфигу пользователя")
 
-    def test_flags_still_pin_the_box(self) -> None:
-        params = self.start_params(self.dry("--sandbox", "read-only", "--approval-policy", "never",
-                                            "--approvals-reviewer", "auto_review"))
+    def test_the_sandbox_flag_still_pins_the_box(self) -> None:
+        params = self.start_params(self.dry("--sandbox", "read-only"))
         self.assertEqual(params["sandbox"], "read-only")
-        self.assertEqual(params["approvalPolicy"], "never")
-        self.assertEqual(params["approvalsReviewer"], "auto_review")
+
+    def test_flags_nobody_passed_are_gone(self) -> None:
+        for flag in ("--turn-sandbox", "--approval-policy", "--no-output-schema", "-c"):
+            done = subprocess.run(
+                [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--profile", "test",
+                 "--message", "x", "--dry-run", flag, "x"],
+                capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(),
+                timeout=60, check=False)
+            self.assertEqual(done.returncode, 2, flag)
 
 
 class TestForkOwnership(EnvSandbox):
