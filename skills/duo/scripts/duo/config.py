@@ -23,8 +23,9 @@ import shutil
 #
 # 0.153.0-alpha.5 was diffed against 0.152.1 field by field: one new method
 # (`plugin/reconcile`), and no change to any parameter, enum or notification
-# this code touches.
-VERIFIED_CODEX_VERSIONS = ("0.152.1", "0.153.0-alpha.5", "0.153.4")
+# this code touches. 0.160.1 is checked by the contract tests against the
+# schema generated from it, kept in tests/schema/0.160.1.
+VERIFIED_CODEX_VERSIONS = ("0.152.1", "0.153.0-alpha.5", "0.153.4", "0.160.1")
 
 # Where the Codex binary lives when ChatGPT.app ships it. A Homebrew cask may
 # put a second one on PATH, and it is a different build, so the bundle is tried
