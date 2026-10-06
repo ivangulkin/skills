@@ -10,19 +10,12 @@ argument-hint: "Что ревьюим и с какой моделью, напр�
 контексте, и он проверяет работу против **собственных** p0/p1, а не с чистого
 листа. Ревью без предыдущей фазы тоже работает — тред просто создаётся здесь.
 
-Движок и все флаги — в скилле `duo`; здесь только шаги этой фазы.
+Движок, флаги и параметры раунда — в скилле `duo`. Прочитай
+`~/.claude/skills/duo/SKILL.md` до первого раунда и снова после сжатия
+контекста: этот файл читается не как скилл, и после сжатия его в контексте
+может не остаться.
 
-```bash
-# путь, а не команда: zsh не разбивает переменную на слова, и "python3 …"
-# одной строкой превратился бы в имя несуществующей программы
-DUO="$HOME/git/personal/dotfiles/skills/mine/duo/scripts/duo"
-```
-
-## Параметры раунда
-
-Те же, что у `duo-design`: `--model`, `--effort`, `--service-tier-for-turn`,
-`--context-window`, `--auto-compact-limit`. Аргумент скилла — подсказка, какие
-выставить. Ревью большой ветки — повод для `--context-window` побольше и модели
+Ревью большой ветки — повод для `--context-window` побольше и модели
 посильнее: пропущенный дефект дороже квоты.
 
 ## Шаги
@@ -38,7 +31,7 @@ DUO="$HOME/git/personal/dotfiles/skills/mine/duo/scripts/duo"
 
    ```bash
    RID=$(uuidgen | tr A-Z a-z)   # запомни: он нужен для повтора и для подтверждения
-   python3 "$DUO" ask --phase review --message-file "$TMPDIR/duo-review-1.md" --model 'astra max' --request-id "$RID"
+   python3 "$HOME/.claude/skills/duo/scripts/duo" ask --phase review --message-file "$TMPDIR/duo-review-1.md" --model 'astra max' --request-id "$RID"
    ```
 
    Бриф лежит во временном каталоге сессии, не в репозитории.
