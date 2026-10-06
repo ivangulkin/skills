@@ -34,6 +34,7 @@ Behaviour is chosen by ``FAKE_CODEX_MODE``:
 memory only, which is enough for single-process tests.
 ``FAKE_CODEX_THREAD_ID`` pins the id of the next created thread.
 ``FAKE_CODEX_SEEN`` dumps every request received, for assertions.
+``FAKE_CODEX_APPROVAL_KIND`` sets ``kind`` on the ``approval`` mode's request.
 ``FAKE_CODEX_PAGE_SIZE`` caps a ``thread/list`` and a ``thread/turns/list`` page.
 ``FAKE_CODEX_TURNS_FAIL_PAST_FIRST`` fails any ``thread/turns/list`` page after the first.
 ``FAKE_CODEX_LIST_FAILS`` makes ``thread/list`` fail, as a server under load can.
@@ -253,13 +254,19 @@ def handle_turn(request_id: Any, params: dict[str, Any]) -> None:
                 "jsonrpc": "2.0",
                 "id": 9001,
                 "method": "item/commandExecution/requestApproval",
-                "params": {"threadId": thread_id, "command": ["rm", "-rf", "/"]},
+                "params": {
+                    "threadId": thread_id, "turnId": turn_id, "itemId": "item-approval",
+                    "startedAtMs": 0, "command": "rm -rf /",
+                    "kind": os.environ.get("FAKE_CODEX_APPROVAL_KIND", "command"),
+                },
             }
         )
         answer = await_response(9001)
         if answer is None:
             return
-        sys.stderr.write(f"approval answered: {json.dumps(answer.get('result'))}\n")
+        data = _load()
+        data.setdefault("approval_answers", []).append(answer.get("result"))
+        _store(data)
 
     notify(
         "item/completed",

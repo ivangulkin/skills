@@ -19,6 +19,18 @@ CODEX=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
 `--experimental` обязателен: без него экспериментальные методы и поля просто
 вырезаются из вывода, и схема выглядит меньше, чем есть.
 
+Тесты проверяют запросы duo и его ответы на запросы сервера по фикстуре
+`tests/schema/<версия>/`. Это файлы вывода генератора, скопированные без
+изменений, — только те, чьи контракты проверяются; каталог сам и есть их
+список. Для новой версии — сгенерировать во временный каталог, скопировать те
+же пути и поменять `SCHEMA` в `tests/test_duo.py`:
+
+```bash
+OUT=$(mktemp -d); "$CODEX" app-server generate-json-schema --experimental --out "$OUT"
+(cd tests/schema/0.160.1 && find . -name '*.json') | while read -r f; do
+  mkdir -p "tests/schema/NEW/$(dirname "$f")" && cp "$OUT/$f" "tests/schema/NEW/$f"; done
+```
+
 ## Транспорт
 
 `codex app-server --listen stdio://`, JSON-RPC 2.0 по строке на сообщение.

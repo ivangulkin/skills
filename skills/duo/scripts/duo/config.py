@@ -25,7 +25,6 @@ import shutil
 # (`plugin/reconcile`), and no change to any parameter, enum or notification
 # this code touches.
 VERIFIED_CODEX_VERSIONS = ("0.152.1", "0.153.0-alpha.5", "0.153.4")
-TESTED_CODEX_VERSION = VERIFIED_CODEX_VERSIONS[-1]
 
 # Where the Codex binary lives when ChatGPT.app ships it. A Homebrew cask may
 # put a second one on PATH, and it is a different build, so the bundle is tried

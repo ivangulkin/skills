@@ -2912,6 +2912,91 @@ class TestThreadNameFollowsChat(ChatFixture):
         self.assertTrue(json.loads(replay.stdout)["replayed"])
         self.assertEqual(len(self.names_sent()), before)
 
+import jsonschema
+
+SCHEMA = Path(__file__).resolve().parent / "schema" / "0.160.1"
+
+
+class _Recorder:
+    """Stands in for an AppServer: records requests, answers a fork with an id."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict]] = []
+
+    def request(self, method: str, params: dict) -> dict:
+        self.calls.append((method, params))
+        return {"thread": {"id": "01a0-fork"}}
+
+
+class TestProtocolContract(EnvSandbox):
+    """What duo sends and answers, checked against the schema of codex-cli 0.160.1.
+
+    The fixture is the generator's own output, copied file for file; refresh it
+    with the command in references/protocol.md.
+    """
+
+    ANSWERS = {
+        "item/commandExecution/requestApproval": "CommandExecutionRequestApprovalResponse.json",
+        "item/fileChange/requestApproval": "FileChangeRequestApprovalResponse.json",
+        "item/permissions/requestApproval": "PermissionsRequestApprovalResponse.json",
+        "execCommandApproval": "ExecCommandApprovalResponse.json",
+        "applyPatchApproval": "ApplyPatchApprovalResponse.json",
+        "mcpServer/elicitation/request": "McpServerElicitationRequestResponse.json",
+        "item/tool/requestUserInput": "ToolRequestUserInputResponse.json",
+    }
+
+    def check(self, name: str, value: object) -> None:
+        jsonschema.validate(value, json.loads((SCHEMA / name).read_text(encoding="utf-8")))
+
+    def test_every_answer_to_a_server_request_fits_its_schema(self) -> None:
+        self.assertEqual(set(appserver._DENIALS), set(self.ANSWERS))
+        for method, name in self.ANSWERS.items():
+            with self.subTest(method=method):
+                self.check(name, appserver._DENIALS[method])
+        self.check("CurrentTimeReadResponse.json", {"currentTimeAt": 1_700_000_000})
+
+    def test_the_answers_sent_before_are_rejected(self) -> None:
+        for name, old in (
+            ("ToolRequestUserInputResponse.json", {"answers": []}),
+            ("ExecCommandApprovalResponse.json", {"decision": "denied"}),
+            ("ApplyPatchApprovalResponse.json", {"decision": "denied"}),
+        ):
+            with self.subTest(name=name), self.assertRaises(jsonschema.ValidationError):
+                self.check(name, old)
+
+    def test_the_requests_duo_sends_fit_their_schema(self) -> None:
+        done = subprocess.run(
+            [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--profile", "test",
+             "--message", "x", "--dry-run", "--sandbox", "read-only", "--verdict-format", "json"],
+            capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(),
+            timeout=60, check=False)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        calls = {c.get("method"): c.get("params") for c in json.loads(done.stdout)["calls"]}
+        self.check("v2/ThreadStartParams.json", calls["thread/start"])
+        self.check("v2/TurnStartParams.json", calls["turn/start"])
+
+        server = _Recorder()
+        consult.resume_thread(server, "01a0-thread", self.tmp, "read-only")
+        consult.fork_thread(server, "01a0-thread",
+                            options_mod.ThreadOptions(cwd=self.tmp, model="gpt-5.6-luna",
+                                                      sandbox="read-only"))
+        (_, resume), (_, fork) = server.calls
+        self.check("v2/ThreadResumeParams.json", resume)
+        self.check("v2/ThreadForkParams.json", fork)
+        self.assertIs(fork["excludeTurns"], True)
+
+    def test_a_write_stdin_approval_is_declined_and_the_turn_finishes(self) -> None:
+        os.environ["FAKE_CODEX_MODE"] = "approval"
+        os.environ["FAKE_CODEX_APPROVAL_KIND"] = "writeStdin"
+        self.check("CommandExecutionRequestApprovalParams.json", {
+            "threadId": "t", "turnId": "u", "itemId": "item-approval", "startedAtMs": 0,
+            "command": "rm -rf /", "kind": "writeStdin"})
+        self.assertEqual(run(self).turn_status, "completed")
+        answers = self.journal()["approval_answers"]
+        self.assertEqual(answers, [{"decision": "decline"}])
+        self.check("CommandExecutionRequestApprovalResponse.json", answers[0])
+
+
 class TestSupersededOriginal(EnvSandbox):
     def cli(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
