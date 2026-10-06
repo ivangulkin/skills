@@ -3,8 +3,8 @@ interface:
   short_description: "План до работы, до трёх раундов, остановка на человека"
   default_prompt: "Используй $duo-design, чтобы согласовать план с Codex в постоянном треде до начала работы."
 policy:
-  # The Claude frontmatter carries disable-model-invocation for the same reason:
-  # these two are entry points a person picks, and a model choosing between them
-  # on its own would start a Codex thread nobody asked for. Codex defaults this
-  # to true, so leaving it out is not the same as leaving it alone.
+  # Codex keeps these two to an explicit $duo-design or $duo-review. They are how
+  # Claude consults Codex; picked by Codex on its own, they would have it open a
+  # thread to review itself. Codex defaults this to true, so leaving it out is
+  # not the same as leaving it alone.
   allow_implicit_invocation: false
