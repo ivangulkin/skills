@@ -63,6 +63,7 @@ from verdict import (
     LoopDecision,
     Verdict,
     decide,
+    open_blockers,
     parse,
 )
 
@@ -633,7 +634,7 @@ def _apply_verdict(
     )
     phase_state.stop_streak = decision.stop_streak
     phase_state.outcome = decision.outcome
-    phase_state.unresolved_ids = sorted(verdict.unresolved_ids())
+    phase_state.unresolved_ids = sorted(open_blockers(verdict, previous))
     record.last_applied_request_id = request_id
     return decision, phase_state.rounds
 

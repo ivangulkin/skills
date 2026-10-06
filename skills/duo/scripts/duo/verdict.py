@@ -512,6 +512,17 @@ def parse(text: str | None) -> Verdict:
     return verdict
 
 
+def open_blockers(verdict: Verdict, previous: frozenset[str] | list[str] | None) -> frozenset[str]:
+    """Blocking ids still open after this round.
+
+    A blocker raised in an earlier round stays open until a verdict closes it
+    by its id — `confirm` or `retract`, with a rationale. Leaving the id out
+    of the verdict is not closing it, and neither is a bare `retract`.
+    """
+    closed = {f.id for f in verdict.findings if f.response in ("confirm", "retract") and f.rationale}
+    return verdict.unresolved_ids() | (frozenset(previous or ()) - closed)
+
+
 @dataclass
 class LoopDecision:
     """What the loop should do after a round, and why."""
@@ -545,21 +556,25 @@ def decide(
             return LoopDecision(True, UNPARSEABLE, 0, str(verdict.parse_error))
         return LoopDecision(False, None, 0, f"unreadable verdict: {verdict.parse_error}")
 
-    streak = stop_streak + 1 if verdict.wants_stop else 0
+    current = open_blockers(verdict, previous_unresolved)
+    carried = sorted(current - verdict.unresolved_ids())
+    agreeing = verdict.wants_stop and not current
+    streak = stop_streak + 1 if agreeing else 0
 
     if streak >= stop_hold:
         return LoopDecision(
             True, CONVERGED, streak, f"agreement held {streak} rounds running"
         )
 
-    current = verdict.unresolved_ids()
-
     # No-progress guard: the same blocking objections restated, with neither
     # side moving. Continuing costs quota and produces the same round again.
+    # Only what this verdict restates counts: a blocker carried over because
+    # it was left out is a request to close it, not a repeated objection.
+    restated = verdict.unresolved_ids()
     if (
         previous_unresolved is not None
-        and current
-        and current == previous_unresolved
+        and restated
+        and restated == frozenset(previous_unresolved)
         and round_number >= 2
     ):
         return LoopDecision(
@@ -570,7 +585,7 @@ def decide(
         )
 
     if round_number >= max_rounds:
-        if verdict.wants_stop:
+        if agreeing:
             return LoopDecision(
                 True,
                 AGREED_UNHELD,
@@ -589,9 +604,15 @@ def decide(
             True, MAX_ROUNDS_REACHED, streak, "round limit reached without a clean stop"
         )
 
-    if verdict.wants_stop:
+    if agreeing:
         return LoopDecision(
             False, None, streak, f"agreement round {streak} of {stop_hold}"
+        )
+    if carried:
+        return LoopDecision(
+            False, None, streak,
+            f"blockers {', '.join(carried)} from earlier rounds are not closed: "
+            "close each with confirm or retract and a rationale",
         )
     return LoopDecision(False, None, streak, "objections remain")
 
