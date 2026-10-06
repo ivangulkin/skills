@@ -474,19 +474,6 @@ def serve() -> int:
                 continue
             update_thread(str(params.get("threadId")), archived=True)
             respond(request_id, {})
-        elif method == "thread/delete":
-            held = os.environ.get("FAKE_CODEX_BUSY_ID")
-            target = str(params.get("threadId"))
-            # The same rule as thread/resume: a writer elsewhere refuses this.
-            if (MODE == "busy" and held and held == target) or (
-                MODE == "busy_after_accept" and has_rollout(target)
-            ):
-                fail(request_id, -32600, "thread already has an active writer")
-                continue
-            data = _load()
-            data.get("threads", {}).pop(str(params.get("threadId")), None)
-            _store(data)
-            respond(request_id, {})
         else:
             fail(request_id, -32601, f"fake-codex does not implement {method}")
 

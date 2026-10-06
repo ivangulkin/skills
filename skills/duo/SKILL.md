@@ -202,7 +202,7 @@ python3 "$DUO" repair-redirect <ключ> --to <ключ>   # или переп�
 
 | Симптом | Причина | Что делать |
 |---|---|---|
-| `forked it into …` в stderr | тред открыт в Codex Desktop, и Desktop держит writer-лок до своего перезапуска | ничего: `duo` сам сделал `thread/fork` — новый тред со всей историей. Исходный сразу переименован в `[старый] …` и будет удалён, как только Desktop его отпустит; до того он висит помеченным. `--no-fork` вместо этого падает с `held by another writer` |
+| `forked it into …` в stderr | тред открыт в Codex Desktop, и Desktop держит writer-лок до своего перезапуска | ничего: `duo` сам сделал `thread/fork` — новый тред со всей историей. Исходный сразу переименован в `[старый] …` и будет заархивирован, как только Desktop его отпустит; до того он висит помеченным. Написанное в исходник после форка остаётся в нём и в новый тред не переезжает. `--no-fork` вместо этого падает с `held by another writer` |
 | `quota is exhausted` | лимит Codex | подождать, либо `--profile test` |
 | `no longer fits the model's context window` | тред перерос окно | `--new`, либо `--context-window` больше |
 | `the message is N characters` | вставлен diff | указать путь вместо содержимого |

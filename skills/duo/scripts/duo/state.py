@@ -152,12 +152,9 @@ class SessionState:
     migrated_from: str | None = None
     # The thread this one was forked from when Desktop held the original.
     forked_from: str | None = None
-    # Threads we owe an archive to — a held original, an unconfirmed fork —
-    # retried on later rounds until it succeeds.
+    # Threads we owe an archive to — a replaced binding, an original forked
+    # because Desktop held it — retried on later rounds until it succeeds.
     archive_debt: list[str] = field(default_factory=list)
-    # Originals we forked because Desktop held them. Their history lives in
-    # our fork, so they are deleted, not archived — once the lock lets go.
-    supersede_debt: list[str] = field(default_factory=list)
     # True: the name was set by --name and stays; False: it follows the Claude
     # chat title; None: a state written before the field existed.
     name_pinned: bool | None = None
@@ -301,6 +298,10 @@ class SessionState:
             # not a boolean — null included — is a value that lost its
             # content, and reading that as legacy would quietly unpin a name.
             raise ValueError("name_pinned is not a boolean")
+        # Files written before forked originals were archived kept them in a
+        # list of their own, to be deleted. They are archived now, like any
+        # other debt: the human may have written into the original after the
+        # fork, and deleting it would lose that.
         raw_super = payload.get("supersede_debt")
         if raw_super is None:
             if strict and "supersede_debt" in payload:
@@ -345,8 +346,7 @@ class SessionState:
             migrating=migrating,
             migrated_from=payload.get("migrated_from"),
             forked_from=payload.get("forked_from"),
-            archive_debt=list(raw_debt),
-            supersede_debt=list(raw_super),
+            archive_debt=list(dict.fromkeys([*raw_debt, *raw_super])),
             name_pinned=raw_pinned,
             resolves_block_id=payload.get("resolves_block_id"),
             phases=phases,

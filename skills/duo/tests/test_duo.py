@@ -570,7 +570,7 @@ class TestRound(EnvSandbox):
         # History travelled: the fork holds the design turn plus the new one.
         self.assertEqual(len(self.turns_of("01a0-forked")), 2)
         # The held original cannot be archived while held; it is owed.
-        self.assertIn(first.record.thread_id, second.record.supersede_debt)
+        self.assertIn(first.record.thread_id, second.record.archive_debt)
         self.assertEqual(second.record.phase("design").rounds, 1)
 
     def test_no_fork_fails_loudly(self) -> None:
@@ -1100,7 +1100,7 @@ class TestForkOwnership(EnvSandbox):
         self.assertEqual(alive.returncode, 0, alive.stderr)
         record = st.load(HOST)
         assert record is not None
-        self.assertIn(source, record.supersede_debt)
+        self.assertIn(source, record.archive_debt)
         self.assertFalse(self.archived(source), "удерживаемый тред нельзя архивировать")
         listing = self.visible_threads()
         self.assertEqual(len(listing), 6, listing)
@@ -2837,9 +2837,9 @@ class TestSupersededOriginal(EnvSandbox):
         record = st.load(HOST)
         assert record is not None
         self.assertIn((self.source, consult.SUPERSEDED_PREFIX + record.thread_name), self.names_set())
-        self.assertEqual(record.supersede_debt, [self.source])
-        self.assertNotIn(self.source, record.archive_debt)
-        self.assertIn(self.source, self.journal()["threads"], "удалён, пока Desktop держит")
+        self.assertEqual(record.archive_debt, [self.source])
+        self.assertFalse(self.journal()["threads"][self.source].get("archived"),
+                         "заархивирован, пока Desktop держит")
 
     def test_while_held_it_stays_marked_and_owed(self) -> None:
         self.cli("--request-id", "req-2", "--ack-request-id", "req-1")
@@ -2847,23 +2847,59 @@ class TestSupersededOriginal(EnvSandbox):
         self.assertEqual(again.returncode, 0, again.stderr)
         record = st.load(HOST)
         assert record is not None
-        self.assertEqual(record.supersede_debt, [self.source])
+        self.assertEqual(record.archive_debt, [self.source])
         self.assertEqual(self.journal()["threads"][self.source]["name"],
                          consult.SUPERSEDED_PREFIX + record.thread_name)
 
-    def test_once_desktop_lets_go_the_original_is_deleted(self) -> None:
+    def test_once_desktop_lets_go_the_original_is_archived_not_deleted(self) -> None:
         self.cli("--request-id", "req-2", "--ack-request-id", "req-1")
+        # The human goes on writing into the original after the fork.
+        data = self.journal()
+        data["threads"][self.source]["turns"].append(
+            {"id": "t-after-fork", "client_id": None, "input": "после форка", "status": "completed",
+             "result": verdict_json()})
+        (self.tmp / "journal.json").write_text(json.dumps(data), encoding="utf-8")
         os.environ["FAKE_CODEX_MODE"] = "ok"
         os.environ.pop("FAKE_CODEX_BUSY_ID", None)
         again = self.cli("--request-id", "req-3", "--ack-request-id", "req-2")
         self.assertEqual(again.returncode, 0, again.stderr)
-        self.assertNotIn(self.source, self.journal()["threads"], "оригинал не удалён")
+        # The human may have written into it after the fork: archived keeps that.
+        original = self.journal()["threads"][self.source]
+        self.assertTrue(original.get("archived"))
+        self.assertIn("t-after-fork", [t["id"] for t in original["turns"]])
+        self.assertNotIn("thread/delete", [c.get("method") for c in self.seen()])
+        self.assertIn(f"archived thread {self.source}", again.stderr)
         record = st.load(HOST)
         assert record is not None
-        self.assertEqual(record.supersede_debt, [])
-        # One live thread under the chat's name, and no archived copy either.
+        self.assertEqual(record.archive_debt, [])
+        # One live thread under the chat's name.
         live = [t for t in self.journal()["threads"].values() if not t.get("archived")]
         self.assertEqual([t["id"] for t in live], ["01a0-fork"])
+
+    def test_a_state_with_the_old_delete_list_owes_an_archive_instead(self) -> None:
+        self.cli("--request-id", "req-2", "--ack-request-id", "req-1")
+        path = st.state_path(HOST)
+        raw = json.loads(path.read_text())
+        raw["supersede_debt"] = ["01a0-legacy", self.source, "01a0-legacy"]
+        raw["archive_debt"] = [self.source]
+        path.write_text(json.dumps(raw))
+        record = st.load(HOST)
+        assert record is not None
+        self.assertEqual(record.archive_debt, [self.source, "01a0-legacy"])
+        self.assertNotIn("supersede_debt", record.to_json())
+
+    def test_a_mark_that_failed_at_fork_time_is_set_on_a_later_round(self) -> None:
+        os.environ["FAKE_CODEX_NAME_SET_FAILS"] = "1"
+        self.cli("--request-id", "req-2", "--ack-request-id", "req-1")
+        record = st.load(HOST)
+        assert record is not None
+        self.assertNotEqual(self.journal()["threads"][self.source].get("name"),
+                            consult.SUPERSEDED_PREFIX + record.thread_name)
+        os.environ.pop("FAKE_CODEX_NAME_SET_FAILS")
+        again = self.cli("--request-id", "req-3", "--ack-request-id", "req-2")
+        self.assertEqual(again.returncode, 0, again.stderr)
+        self.assertEqual(self.journal()["threads"][self.source]["name"],
+                         consult.SUPERSEDED_PREFIX + record.thread_name)
 
     def test_close_refuses_while_the_original_is_still_held(self) -> None:
         self.cli("--request-id", "req-2", "--ack-request-id", "req-1")
