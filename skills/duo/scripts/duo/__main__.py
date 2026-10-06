@@ -597,7 +597,8 @@ def _dry_run(
     request_id = args.request_id or "<generated uuid4>"
 
     if thread_options.developer_instructions is None:
-        thread_options.developer_instructions = consult.developer_instructions(args.phase, args.verdict_format)
+        thread_options.developer_instructions = consult.developer_instructions()
+    turn_options.additional_context = consult.phase_context(args.phase, args.verdict_format)
     if turn_options.output_schema is None and args.verdict_format == "json":
         turn_options.output_schema = VERDICT_SCHEMA
     turn_options.client_user_message_id = request_id
@@ -610,8 +611,11 @@ def _dry_run(
         {"notification": "initialized"},
     ]
     if reuse:
-        calls.append({"method": "thread/resume", "params": {
-            "threadId": thread_id, "cwd": str(thread_options.cwd), "excludeTurns": True}})
+        resume = {"threadId": thread_id, "cwd": str(thread_options.cwd), "excludeTurns": True,
+                  "developerInstructions": consult.developer_instructions()}
+        if record is not None and record.sandbox is not None:
+            resume["sandbox"] = record.sandbox
+        calls.append({"method": "thread/resume", "params": resume})
     else:
         calls.append({"method": "thread/start", "params": thread_options.to_params()})
         calls.append({"method": "thread/name/set", "params": {"threadId": "<new>", "name": title}})
