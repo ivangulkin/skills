@@ -35,6 +35,12 @@ if problems:
     sys.exit("these definitions shadow an earlier one and it never runs: " + ", ".join(problems))
 PY
 
+echo "== test dependencies =="
+# The protocol contract tests check payloads against the generated schema.
+python3 -c 'import jsonschema' || {
+  echo "jsonschema is missing; install it: python3 -m pip install jsonschema" >&2
+  exit 1
+}
 echo "== unit and end-to-end =="
 # ResourceWarning is an error here: a leaked pipe per round is exactly the kind
 # of slow failure this design exists to avoid.

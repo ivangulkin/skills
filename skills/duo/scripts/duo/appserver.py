@@ -130,15 +130,18 @@ class TurnTimeout(RuntimeError):
 # nobody upstream would settle, and the safe reply is the one that neither
 # grants access nor wedges the turn.
 #
-# The enum values differ per method and are not interchangeable — the v2
-# methods take `decline`, the legacy ones take `denied`.
+# The shapes differ per method and are not interchangeable — the v2 methods
+# take the string `decline`, the legacy ones an object naming the rejection.
+# Each answer is checked against the generated schema in the tests.
+_REJECTION = "duo declines every approval; the thread runs under the user's own Codex config"
 _DENIALS: dict[str, dict[str, Any]] = {
     "item/commandExecution/requestApproval": {"decision": "decline"},
     "item/fileChange/requestApproval": {"decision": "decline"},
-    "execCommandApproval": {"decision": "denied"},
-    "applyPatchApproval": {"decision": "denied"},
+    "item/permissions/requestApproval": {"permissions": {}, "scope": "turn"},
+    "execCommandApproval": {"decision": {"denied": {"rejection": _REJECTION}}},
+    "applyPatchApproval": {"decision": {"denied": {"rejection": _REJECTION}}},
     "mcpServer/elicitation/request": {"action": "decline"},
-    "item/tool/requestUserInput": {"answers": []},
+    "item/tool/requestUserInput": {"answers": {}},
 }
 
 
@@ -158,10 +161,6 @@ class TurnRecord:
     turn_id: str | None = None
     # The variant name from `codexErrorInfo`, when the turn failed with one.
     error_kind: str | None = None
-
-    @property
-    def succeeded(self) -> bool:
-        return self.status == "completed" and not self.errors
 
     def final_text(self) -> str | None:
         """The assistant's terminal answer for the turn.

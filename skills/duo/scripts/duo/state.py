@@ -922,11 +922,6 @@ def migration_chain(key: str) -> list[str]:
     )
 
 
-def load_raw_exists(key: str) -> bool:
-    """Whether a state file is there at all, without parsing or quarantining."""
-    return state_path(key).exists()
-
-
 def repair_redirect(key: str, destination: str | None) -> str | None:
     """Set aside or rewrite the redirect filed under ``key``.
 

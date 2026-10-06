@@ -361,6 +361,9 @@ def fork_thread(server: AppServer, source_id: str, options: ThreadOptions) -> st
     """
     params = options.to_params()
     params["threadId"] = source_id
+    # Only the new id is read back; the history comes from thread/turns/list.
+    # Full hydration is deprecated for paginated threads in 0.160.1.
+    params["excludeTurns"] = True
     result = server.request("thread/fork", params)
     if not isinstance(result, dict):
         raise ConsultError("thread/fork returned something that is not an object")
