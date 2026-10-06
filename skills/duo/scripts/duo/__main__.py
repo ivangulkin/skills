@@ -49,19 +49,7 @@ from config import (
 )
 import consult
 from consult import ConsultError, OpenRequestConflict, PHASES, RecoveryWaitExhausted, crash_point, resolve_profile
-from options import (
-    APPROVAL_POLICIES,
-    APPROVALS_REVIEWERS,
-    HISTORY_MODES,
-    OptionError,
-    PERSONALITIES,
-    REASONING_SUMMARIES,
-    SANDBOX_MODES,
-    SESSION_START_SOURCES,
-    ThreadOptions,
-    TurnOptions,
-    nest_overrides,
-)
+from options import SANDBOX_MODES, ThreadOptions, TurnOptions
 import state as st
 from terminal import out, say, visible
 from state import StateBlocked, StateCorrupt, StateError, StateLocked, StateUnreadable
@@ -91,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     except (StateBlocked, StateCorrupt, StateUnreadable) as exc:
         say(exc)
         return 9
-    except (ConsultError, OptionError, StateError, ConfigError) as exc:
+    except (ConsultError, StateError, ConfigError) as exc:
         say(exc)
         return 2
     except AppServerError as exc:
@@ -138,37 +126,9 @@ def _add_thread_flags(parser: argparse.ArgumentParser) -> None:
         "thread (applied when the thread is created, ignored on later rounds)"
     )
     group.add_argument("--cwd", type=Path, help="working root for the thread; default: the Claude chat's own directory, else $PWD")
-    group.add_argument("--model-provider", help="provider id, e.g. openai or a proxy")
     group.add_argument("--sandbox", choices=SANDBOX_MODES, help="default: whatever your Codex config says")
-    group.add_argument("--approval-policy", choices=APPROVAL_POLICIES, help="default never")
-    group.add_argument(
-        "--permissions",
-        help="named permission profile; the schema forbids combining it with --sandbox",
-    )
-    group.add_argument("--approvals-reviewer", choices=APPROVALS_REVIEWERS)
-    group.add_argument("--personality", choices=PERSONALITIES)
-    group.add_argument("--history-mode", choices=HISTORY_MODES)
-    group.add_argument("--thread-source", help="analytics label, e.g. user or subagent")
-    group.add_argument("--session-start-source", choices=SESSION_START_SOURCES)
-    group.add_argument("--project-id", help="attach the thread to an existing Codex project")
-    group.add_argument("--service-name", help="client service name recorded on the thread")
-    group.add_argument("--base-instructions-file", type=Path, help="replace the built-in base instructions")
-    group.add_argument("--developer-instructions-file", type=Path, help="replace the opponent role prompt")
-    group.add_argument(
-        "--add-dir", type=Path, action="append", default=[], metavar="DIR",
-        help="extra runtime workspace root, absolute path only, repeatable",
-    )
-    group.add_argument(
-        "-c", "--config", action="append", default=[], metavar="KEY=VALUE",
-        help="config override with a dotted key, repeatable: -c tools.web_search=true",
-    )
     group.add_argument("--context-window", type=int, metavar="TOKENS", help="model_context_window")
     group.add_argument("--auto-compact-limit", type=int, metavar="TOKENS", help="model_auto_compact_token_limit")
-    group.add_argument("--allow-provider-model-fallback", action="store_true")
-    group.add_argument(
-        "--ephemeral", action="store_true",
-        help="in-memory thread that will NOT appear in the sidebar; for reproducing that",
-    )
 
 
 def _add_turn_flags(parser: argparse.ArgumentParser) -> None:
@@ -178,17 +138,7 @@ def _add_turn_flags(parser: argparse.ArgumentParser) -> None:
         help='model slug or a spoken one: "5.6 luna light", "sol max", "mini"',
     )
     group.add_argument("--effort", help="low, medium, high, xhigh, max, ultra — model dependent")
-    group.add_argument("--service-tier", help='sticky speed tier: "default" or "priority"')
     group.add_argument("--service-tier-for-turn", help=f"speed for this turn only; default {SERVICE_TIER_STANDARD}")
-    group.add_argument("--turn-personality", choices=PERSONALITIES)
-    group.add_argument("--summary", choices=REASONING_SUMMARIES, help="reasoning summary")
-    group.add_argument("--turn-sandbox", choices=SANDBOX_MODES, help="sandboxPolicy for the turn")
-    group.add_argument("--turn-approval-policy", choices=APPROVAL_POLICIES)
-    group.add_argument("--turn-permissions")
-    group.add_argument("--turn-approvals-reviewer", choices=APPROVALS_REVIEWERS)
-    group.add_argument("--turn-trigger", help="analytics label for what started this turn")
-    group.add_argument("--no-output-schema", action="store_true", help="do not constrain the answer")
-    group.add_argument("--output-schema-file", type=Path, help="your own JSON Schema instead of the verdict")
 
 
 class _Parser(argparse.ArgumentParser):
@@ -310,27 +260,8 @@ def _read_text_file(path: Path, label: str) -> str:
         raise ConsultError(f"cannot read {label} from {path}: {exc}") from exc
 
 
-def _read_optional(path: Path | None, label: str) -> str | None:
-    if path is None:
-        return None
-    return _read_text_file(path, label)
-
-
-def _output_schema(args: argparse.Namespace) -> dict[str, Any] | None:
-    if args.no_output_schema or args.output_schema_file is None:
-        return None
-    raw = _read_optional(args.output_schema_file, "output schema")
-    try:
-        parsed = json.loads(raw or "")
-    except (json.JSONDecodeError, ValueError) as exc:
-        raise ConsultError(f"{args.output_schema_file} is not valid JSON: {exc}") from exc
-    if not isinstance(parsed, dict):
-        raise ConsultError(f"{args.output_schema_file} must contain a JSON object")
-    return parsed
-
-
 def _config_with_limits(args: argparse.Namespace) -> dict[str, Any]:
-    overrides = nest_overrides(args.config)
+    overrides: dict[str, Any] = {}
     if args.context_window is not None:
         if args.context_window <= 0:
             raise ConsultError("--context-window must be a positive number of tokens")
@@ -352,47 +283,18 @@ def _build_options(args: argparse.Namespace) -> tuple[ThreadOptions, TurnOptions
         except ValueError as exc:
             raise ConsultError(str(exc)) from exc
     effort = args.effort or alias_effort or profile.effort
-    roots = [p.expanduser() for p in args.add_dir]
 
     thread = ThreadOptions(
         cwd=(args.cwd or Path.cwd()).resolve(),
         model=model,
-        model_provider=args.model_provider,
-        sandbox=args.sandbox or (None if args.permissions else consult.SANDBOX),
-        approval_policy=args.approval_policy or consult.APPROVAL_POLICY,
-        permissions=args.permissions,
-        approvals_reviewer=args.approvals_reviewer,
-        personality=args.personality,
-        history_mode=args.history_mode,
-        thread_source=args.thread_source,
-        session_start_source=args.session_start_source,
-        project_id=args.project_id,
-        service_tier=args.service_tier,
-        service_name=args.service_name,
-        base_instructions=_read_optional(args.base_instructions_file, "base instructions"),
-        developer_instructions=_read_optional(args.developer_instructions_file, "developer instructions"),
-        runtime_workspace_roots=roots,
+        sandbox=args.sandbox,
         config=_config_with_limits(args),
-        allow_provider_model_fallback=args.allow_provider_model_fallback,
-        ephemeral=args.ephemeral,
     )
     turn = TurnOptions(
         model=model,
         effort=effort,
-        service_tier=args.service_tier,
         service_tier_for_turn=args.service_tier_for_turn or profile.service_tier,
-        personality=args.turn_personality,
-        summary=args.summary,
-        sandbox=args.turn_sandbox,
-        approval_policy=args.turn_approval_policy,
-        permissions=args.turn_permissions,
-        approvals_reviewer=args.turn_approvals_reviewer,
-        turn_trigger=args.turn_trigger,
-        runtime_workspace_roots=roots,
-        output_schema=_output_schema(args),
     )
-    thread.validate()
-    turn.validate()
     return thread, turn, profile.name
 
 
@@ -528,8 +430,6 @@ def cmd_ask(args: argparse.Namespace) -> int:
     note = effort_warning(turn_options.model, turn_options.effort)
     if note:
         say(f"{note}")
-    if thread_options.ephemeral:
-        say(f"--ephemeral was passed; this thread will not appear in the sidebar")
 
     if args.dry_run:
         return _dry_run(session, host, args, thread_options, turn_options, message)

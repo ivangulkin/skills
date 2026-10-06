@@ -144,6 +144,8 @@ class SessionState:
     rollout_materialized: bool = False
     model: str | None = None
     effort: str | None = None
+    # The sandbox the thread was created with, re-sent on resume and fork.
+    sandbox: str | None = None
     codex_version: str | None = None
     creating: Creating | None = None
     open_request: OpenRequest | None = None
@@ -320,7 +322,7 @@ class SessionState:
             raise ValueError("archive_debt is not a list of thread ids")
         for name in (
             "claude_host_session_id", "last_applied_request_id", "migrated_from",
-            "forked_from", "resolves_block_id",
+            "forked_from", "resolves_block_id", "sandbox",
         ):
             if payload.get(name) is not None and not isinstance(payload.get(name), str):
                 raise ValueError(f"{name} is not a string")
@@ -339,6 +341,7 @@ class SessionState:
             rollout_materialized=bool(payload.get("rollout_materialized", version == 1)),
             model=payload.get("model"),
             effort=payload.get("effort"),
+            sandbox=payload.get("sandbox"),
             codex_version=payload.get("codex_version"),
             creating=creating,
             open_request=open_request,
