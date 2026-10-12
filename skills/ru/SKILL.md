@@ -200,6 +200,7 @@ license: MIT
 | Число, единица, процент, сокращение в прозе | [typography.md](references/typography.md) |
 | Перестроить длинный текст | [composition.md](references/composition.md), [cohesion.md](references/cohesion.md) |
 | Проверить утверждения по источникам | [source-integrity.md](references/source-integrity.md) и сами источники |
+| Русская форма английского слова: род названия, вид глагола, запись окончания, английская фраза в предложении | [terms.md](references/terms.md) |
 | Ответить на вопрос о норме | [sources.md](references/sources.md), [disputed.md](references/disputed.md) |
 
 Полная карта справочников:
