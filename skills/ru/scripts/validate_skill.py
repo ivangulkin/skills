@@ -37,6 +37,13 @@ RULE_HEADING = re.compile(r"^#{2,3} ([A-Z])(\d+)\.", re.MULTILINE)
 # two digits; the bound keeps DOIs and catalogue codes out — `S0266078418000512`
 # is not rule S0266078418000512.
 RULE_MENTION = re.compile(r"(?<![A-Za-z0-9])([A-Z])(\d{1,2})(?![0-9A-Za-z])")
+# A range from the first card of a series, `N1–N8` or `E1`…`E24`. One that
+# stops short of the last card is how a list of the whole series goes stale
+# after a card is added. A subset that starts elsewhere, G4–G8, is not checked.
+RANGE_FROM_FIRST = re.compile(r"(?<![A-Za-z0-9])([A-Z])1`?[–…]`?\1(\d{1,2})(?![0-9A-Za-z])")
+# The card field has one spelling; «Что доказывает находка.» is the same field
+# written a second way.
+PROOF_LABEL = "**Что находка доказывает:**"
 # F1–F8 live in a table in contracts.md rather than in headings; they are real
 # identifiers with no heading of their own.
 TABLE_ONLY_IDS = {f"F{n}" for n in range(1, 9)}
@@ -317,6 +324,9 @@ def _rule_id_errors(root: Path) -> list[str]:
     # Only prefixes that actually name rules; a stray "T3" inside a version
     # string or an English word is not a reference.
     prefixes = {rule[0] for rule in known}
+    last: dict[str, int] = {}
+    for rule in known:
+        last[rule[0]] = max(last.get(rule[0], 0), int(rule[1:]))
     # Archived reports use their own letter-and-digit codes — P0/P1/P2 there are
     # priorities, not rule P0 — so they are read for duplicate definitions but
     # not for references. Everything a reader is routed through stays in scope.
@@ -324,9 +334,42 @@ def _rule_id_errors(root: Path) -> list[str]:
         parts = path.relative_to(root).parts
         if any(parts[: len(prefix)] == prefix for prefix in ARCHIVE_PATHS):
             continue
+        card, level = None, 0
         for line in _without_code(path.read_text(encoding="utf-8")).splitlines():
+            # A subheading inside a card, "### Примеры" under "## T3.", is
+            # still that card; a heading at its level or above ends it.
+            heading = re.match(r"(#+) ", line)
+            if heading and (card is None or len(heading.group(1)) <= level):
+                card, level = RULE_HEADING.match(line), len(heading.group(1))
             if RULE_HEADING.match(line):
                 continue
+            label = re.match(r"\*\*[^*]+\*\*", line)
+            if (
+                label
+                and "находк" in label.group(0)
+                and "доказыва" in label.group(0)
+                and label.group(0) != PROOF_LABEL
+            ):
+                errors.append(
+                    f"Field label {label.group(0)} in {path.relative_to(root)} "
+                    f"is spelled {PROOF_LABEL}"
+                )
+            # maintainers/ records what was true on a date, and a table of
+            # contents names the span of its own section; neither lists a series.
+            # A card that compares itself with all the cards before it — P6
+            # saying "as P1–P5" — is not stale either.
+            for prefix, upper in RANGE_FROM_FIRST.findall(line):
+                if (
+                    parts[0] != "maintainers"
+                    and not re.match(r"\s*[-*] \[[^\]]*\]\(#", line)
+                    and int(upper) < last.get(prefix, 0)
+                    and not (card and card.group(1) == prefix and int(card.group(2)) == int(upper) + 1)
+                ):
+                    errors.append(
+                        f"Range {prefix}1–{prefix}{upper} in {path.relative_to(root)} "
+                        f"stops before {prefix}{last[prefix]}; a deliberate subset "
+                        "names its cards one by one"
+                    )
             # Ranges like G9-G15 name their endpoints; both get checked.
             for prefix, number in RULE_MENTION.findall(line):
                 if prefix not in prefixes:
