@@ -10,6 +10,12 @@ The checker compares a source document with an edited document. It verifies:
   byte-identical when ``--surface confluence-storage`` is selected;
 * every explicitly supplied term spec remains present with its source count.
 
+Three report-only blocks never change the exit code: hedges, quantifiers and
+modality that appeared or vanished, units beyond the closed list, and Latin
+names that appeared or vanished.
+They compare counts outside protected spans; equal counts do not prove the
+word still qualifies the same fact.
+
 It cannot validate paraphrased facts, causality, status, or uncertainty. Those
 remain behavioral eval assertions and human/model review tasks.
 """
@@ -24,6 +30,7 @@ import json
 from pathlib import Path
 import re
 import sys
+from typing import Callable
 
 
 FENCED = re.compile(r"(?ms)^[ \t]*(```|~~~).*?^[ \t]*\1[ \t]*$")
@@ -46,6 +53,62 @@ NUMBER = re.compile(
     r"(?!\w)",
     re.IGNORECASE,
 )
+# Quantity with a unit beyond NUMBER's closed list. Report-only: see _units.
+UNIT_NUMBER = re.compile(
+    r"(?<![\w.])(?P<cur>[$€])?\d+(?:[.,]\d+)?(?:[kKmM]|\s*(?:млн|млрд|тыс)\.?)?"
+    r"(?P<unit>\s*(?:%|п\.\s*п\.|процентн\w*\s+пункт\w*|процент\w*|руб\w*|₽|\$|€"
+    r"|дн\w*|ден\w*|недел\w*|месяц\w*|шт\w*)"
+    # Years: "2026 году" is a date, not a quantity, so four digits take no unit.
+    r"|(?<!\d{4})\s*(?:год\w*|лет))?"
+    r"(?!\w)",
+    re.IGNORECASE,
+)
+# One unit under its declined or spelled-out forms: "3 процента" and "3 %" are
+# the same quantity, "3 п. п." is not.
+UNIT_FORMS = (
+    (r"п\.\s*п\.|процентн\w*\s+пункт\w*", "п. п."),
+    (r"процент\w*", "%"),
+    (r"руб\w*|₽", "руб"),
+    (r"(?:дн|ден)\w*", "дн"),
+    (r"недел\w*", "недел"),
+    (r"месяц\w*", "месяц"),
+    (r"год\w*|лет", "год"),
+    (r"шт\w*", "шт"),
+)
+UNIT_FORM = re.compile(
+    "|".join(f"(?P<u{i}>{pattern})" for i, (pattern, _) in enumerate(UNIT_FORMS)),
+    re.IGNORECASE,
+)
+# Hedges, quantifiers and modality. Report-only: a lost word is a prompt to
+# check the fact it qualified, not a failure. "может показаться" is a hedge of
+# opinion and is not counted. Order matters: longer forms come first.
+HEDGES = (
+    (r"мо(?:жет|гут)(?!\s+показаться)", "может"),
+    (r"как\s+правило", "как правило"),
+    (r"в\s+среднем", "в среднем"),
+    (r"скорее\s+всего", "скорее всего"),
+    (r"не\s+всегда", "не всегда"),
+    (r"не\s+обязательно", "не обязательно"),
+    (r"обычно|часто|иногда|примерно|около|почти|вероятно", None),
+    (r"(?:от|до|более|менее|свыше)(?=\s+\d)", None),
+    (r"единственн\w*", "единственн*"),
+    (r"в\s+том\s+числе", "в том числе"),
+    (r"(?:один|одна|одно)\s+из", "один из"),
+    (r"до\s+сих\s+пор", "до сих пор"),
+    (r"перв(?:ый|ая|ое|ые|ого|ому|ым|ом|ой|ую|ых|ыми)", "первый"),
+    (r"сам(?:ый|ая|ое|ые|ого|ому|ым|ом|ой|ую|ых|ыми)", "самый"),
+    (r"только|всегда|никогда|любой|ровно|исключительно|впервые", None),
+    (r"долж(?:ен|на|но|ны)", "должен"),
+    (r"следует|нужно|можно|нельзя", None),
+)
+HEDGE = re.compile(
+    r"(?<!\w)(?:"
+    + "|".join(f"(?P<h{i}>{pattern})" for i, (pattern, _) in enumerate(HEDGES))
+    + r")(?!\w)",
+    re.IGNORECASE,
+)
+LATIN_NAME = re.compile(r"(?<![A-Za-z0-9_])[A-Z][A-Za-z0-9]+(?![A-Za-z0-9_])")
+CONTEXT = 30
 SURFACES = ("plain", "markdown", "confluence-storage", "chat")
 XHTML_TAG = re.compile(r"(?s)<[^>]+>")
 CONFLUENCE_PROTECTED_TAGS = {
@@ -83,6 +146,9 @@ class Report:
     content_removed: bool
     markup_changed: bool
     surface: str
+    hedge_changes: tuple[str, ...] = ()
+    latin_name_changes: tuple[str, ...] = ()
+    unit_changes: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -120,10 +186,14 @@ class Report:
         "степень уверенности",
         "привязка числа к объекту: числа сравниваются как мультимножество",
         "знак числа: минус в токен не входит",
-        "единицы вне закрытого списка: «5 дней» и «5 недель» — одно число",
+        "единицы вне закрытого списка в самом сравнении чисел: «5 дней» и «5 недель» — "
+        "одно число; различия таких единиц только в отдельном блоке отчёта, "
+        "а «5 кг» и «5 т» не видны вовсе",
         "порядок защищённых фрагментов: переставленные команды проходят",
         "пересказ факта своими словами",
         "литералы, которые скрипт не распознаёт как числа, URL или фрагменты",
+        "область действия оговорки и квантора: одинаковый счёт слов не доказывает, "
+        "что слово осталось при том же факте",
     )
 
     def coverage(self) -> dict[str, object]:
@@ -155,6 +225,9 @@ class Report:
             "content_removed": self.content_removed,
             "markup_changed": self.markup_changed,
             "surface": self.surface,
+            "hedge_changes": list(self.hedge_changes),
+            "latin_name_changes": list(self.latin_name_changes),
+            "unit_changes": list(self.unit_changes),
         }
 
 
@@ -232,6 +305,72 @@ def confluence_protected_spans(text: str) -> list[str]:
     parser = ConfluenceProtectedSpanParser(text)
     parser.feed(text)
     return parser.finish()
+
+
+def _hedges(text: str) -> list[tuple[str, int]]:
+    found = []
+    for match in HEDGE.finditer(text):
+        label = HEDGES[int(match.lastgroup[1:])][1]
+        found.append((label or re.sub(r"\s+", " ", match.group(0).lower()), match.start()))
+    return found
+
+
+# A quote may wrap lines but never crosses a blank line, so a lone " (inches,
+# an unclosed quote) cannot mask the paragraphs after it.
+STRAIGHT_QUOTED = re.compile(r'"(?:[^"\n]|\n(?![ \t]*\n))*"')
+
+
+def _latin_names(text: str) -> list[tuple[str, int]]:
+    # Straight quotes are quoted prose for this report only; offsets are kept.
+    text = STRAIGHT_QUOTED.sub(lambda m: " " * len(m.group(0)), text)
+    return [(m.group(0), m.start()) for m in LATIN_NAME.finditer(text)]
+
+
+def _units(text: str) -> list[tuple[str, int]]:
+    """Quantities whose unit has a canonical form; bare numbers are NUMBER's."""
+    found = []
+    for match in UNIT_NUMBER.finditer(text):
+        raw = match.group(0)
+        if not (match.group("cur") or match.group("unit")):
+            continue  # a bare number or multiplier is NUMBER's
+        found.append(
+            (UNIT_FORM.sub(lambda m: UNIT_FORMS[int(m.lastgroup[1:])][1], raw), match.start())
+        )
+    return found
+
+
+def _count_changes(
+    source: str,
+    edited: str,
+    find: Callable[[str], list[tuple[str, int]]],
+    *,
+    surface: str,
+) -> tuple[str, ...]:
+    """Counter difference of labelled words, with a context fragment per side.
+
+    Compares counts, not sets: 2 -> 1 is a loss too. Protected spans (code,
+    quotes, logs) are cut out first.
+    """
+    sides = []
+    for text in (source, edited):
+        text = URL.sub(" ", editable_text(text, surface=surface))
+        sides.append((text, find(text)))
+    counts = [Counter(label for label, _ in found) for _, found in sides]
+
+    def context(side: int, label: str) -> str:
+        text, found = sides[side]
+        start = next((pos for name, pos in found if name == label), None)
+        if start is None:
+            return "—"
+        piece = text[max(0, start - CONTEXT) : start + CONTEXT]
+        return "«…" + re.sub(r"\s+", " ", piece).strip() + "…»"
+
+    return tuple(
+        f"{label}: {counts[0][label]} -> {counts[1][label]}; "
+        f"вход {context(0, label)}; результат {context(1, label)}"
+        for label in sorted(set(counts[0]) | set(counts[1]))
+        if counts[0][label] != counts[1][label]
+    )
 
 
 def _counter_diff(before: Counter[str], after: Counter[str]) -> tuple[str, ...]:
@@ -358,6 +497,11 @@ def compare(
         content_removed=content_removed,
         markup_changed=markup_changed,
         surface=surface,
+        hedge_changes=_count_changes(source, edited, _hedges, surface=surface),
+        unit_changes=_count_changes(source, edited, _units, surface=surface),
+        latin_name_changes=_count_changes(
+            source, edited, _latin_names, surface=surface
+        ),
     )
 
 
@@ -371,7 +515,39 @@ def _read_terms(path: Path | None, direct: list[str]) -> list[str]:
     return terms
 
 
+def _advisory(report: Report) -> str:
+    """Report-only blocks: they never change the exit code."""
+    blocks = (
+        (
+            "Оговорки, кванторы и модальность (report-only, код выхода не меняется). "
+            "Проверка неполная: одинаковый счёт слов не доказывает, что область "
+            "действия слова не сдвинулась. Сверить с шагом 6 и вернуть оговорку, "
+            "если она стояла при факте:",
+            report.hedge_changes,
+        ),
+        (
+            "Единицы вне закрытого списка (report-only, код выхода не меняется). "
+            "Склонённые формы считаются одной единицей; «3 п. п.» и «3 %» разные:",
+            report.unit_changes,
+        ),
+        (
+            "Латинские имена вне кода и цитат (report-only, код выхода не меняется). "
+            "Появившееся имя, которого автор не называл, — шов:",
+            report.latin_name_changes,
+        ),
+    )
+    return "".join(
+        f"\n\n{title}\n" + "\n".join(f"  - {line}" for line in lines)
+        for title, lines in blocks
+        if lines
+    )
+
+
 def _render(report: Report) -> str:
+    return _render_invariants(report) + _advisory(report)
+
+
+def _render_invariants(report: Report) -> str:
     if report.ok:
         cov = report.coverage()
         checked = "\n".join(f"  - {item}" for item in cov["checked"])

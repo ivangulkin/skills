@@ -432,6 +432,234 @@ class SlopSpansTests(unittest.TestCase):
         ids = self.ids("\ufeffСервис работает.", register="technical")
         self.assertIn("hygiene.invisible-character", ids)
 
+    def test_it_negatives_are_clean_under_every_tier_and_register(self) -> None:
+        snippets = (
+            "Kafka — распределённый лог.",
+            "Запрос идёт: клиент → брокер → консьюмер.",
+            "Пул держит 3–4 соединения.",
+            "В замерах Rust vs Go разница в пределах шума.",
+            "Нужна версия >= 1.4.",
+            "> «Успех — это не просто удача, а система»",
+        )
+        for text in snippets:
+            for register in ("general", "technical"):
+                with self.subTest(text=text, register=register):
+                    self.assertEqual(
+                        [], self.ids(text, register=register, tiers=set(SLOPSPANS.TIERS))
+                    )
+
+    def check_rule(
+        self,
+        rule_id: str,
+        *,
+        positive: tuple[str, ...],
+        negative: tuple[str, ...],
+        register: str = "general",
+    ) -> None:
+        for text in positive:
+            with self.subTest(rule=rule_id, case="positive", text=text):
+                self.assertIn(rule_id, self.ids(text, register=register))
+        for text in negative:
+            with self.subTest(rule=rule_id, case="negative", text=text):
+                self.assertNotIn(rule_id, self.ids(text, register=register))
+
+    def test_importance_puffery_covers_evaluative_role_and_step(self) -> None:
+        self.check_rule(
+            "soft.importance-puffery",
+            positive=(
+                "Кэш играет ключевую роль в производительности.",
+                "Индекс играет важную роль только при больших выборках.",
+                "Retry играет решающую роль, и значительную роль играет таймаут.",
+                "Это важный шаг к надёжности платформы.",
+                "Миграция — важный шаг в сторону отказа от монолита.",
+            ),
+            negative=(
+                "Нода играет роль координатора.",
+                "Следующий важный шаг: сделайте бэкап.",
+                "Это шаг вперёд.",
+                "В спектакле у него важная роль.",
+            ),
+        )
+        self.assertNotIn(
+            "soft.importance-puffery",
+            self.ids("Кэш играет ключевую роль.", register="legal"),
+        )
+
+    def test_canonical_negative_parallelism_without_a_dash(self) -> None:
+        self.check_rule(
+            "soft.negative-parallelism",
+            positive=(
+                "Это не просто инструмент, а партнёр.",
+                "Лог не просто пишется, а сразу индексируется.",
+                "Это не просто\nинструмент, а партнёр.",
+            ),
+            negative=(
+                "Это не просто так.",
+                "Не просто так, а по договору.",
+                "Это не просто, а долго.",
+                "> «Успех — это не просто удача, а система»",
+            ),
+        )
+
+    def test_vazhno_pomnit_is_a_filler_but_admonitions_are_not(self) -> None:
+        self.check_rule(
+            "soft.filler",
+            positive=("Важно помнить, что токен живёт час.",),
+            negative=(
+                "Помни: токен живёт час.",
+                "> **Важно:** токен живёт час.",
+                "**Важно:** ключ нельзя восстановить.",
+            ),
+        )
+
+    def test_mixed_script_word_is_contextual_hygiene(self) -> None:
+        rule = next(r for r in self.rules if r.id == "hygiene.mixed-script-word")
+        self.assertEqual("hygiene-contextual", rule.tier)
+        self.check_rule(
+            "hygiene.mixed-script-word",
+            positive=(
+                "Запусти д\u0065плой на проде.",  # Latin e inside a Russian word
+                "Новый \u0063ервис упал.",  # Latin c
+                "Dockerфайл лежит в корне.",  # accepted: report only
+            ),
+            negative=(
+                "Запусти деплой на проде.",
+                "API-шлюз, iOS-приложение, k8s-манифест.",
+                "Pod'ов и meeting'и остаются целыми.",
+                "Проверь 1С:Предприятие и my_сервис.",
+                "Каталог docs/сервисы и ключ api/ключ.",
+                "Запусти `д\u0065плой` в консоли.",
+            ),
+        )
+        # report only: not a strict tier, no exit code
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "mixed.md"
+            path.write_text("Запусти д\u0065плой на проде.", encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, SLOPSPANS.main(["--artifacts-only", str(path)]))
+                self.assertEqual(0, SLOPSPANS.main([str(path)]))
+
+    def test_offer_tail_and_variant_label_are_off_in_chat_and_commit(self) -> None:
+        self.check_rule(
+            "soft.offer-tail",
+            positive=(
+                "Хотите, чтобы я добавил раздел про метрики?",
+                "Могу также подготовить версию покороче.",
+                "Могу адаптировать текст под рассылку.",
+                "Вариант 1: коротко.\nВариант 2: подробно.",
+                "**Вариант 1:** коротко.",
+            ),
+            negative=(
+                "Хотите, чтобы мы добавили раздел?",
+                "Если нужно, могу добавить тест.",
+                "Вариант A: оставить монолит.",
+                "Рассмотрены варианты 1 и 2.",
+                "## Вариант 1: Kafka",
+                "- Вариант 1: Kafka",
+                "Сервер может подготовить ответ.",
+            ),
+        )
+        for register in ("chat", "commit"):
+            with self.subTest(register=register):
+                self.assertNotIn(
+                    "soft.offer-tail",
+                    self.ids("Хотите, чтобы я добавил раздел?", register=register),
+                )
+
+    def test_russian_name_placeholders_skip_links_and_footnotes(self) -> None:
+        self.check_rule(
+            "hygiene.placeholder-name",
+            positive=(
+                "[Имя клиента], добрый день!",
+                "Позвоните: [Телефон]",
+                "С уважением, [Ваше имя]",
+            ),
+            negative=(
+                "См. [Дата релиза](https://example.com).",
+                "[Название]: описание",
+                "Сноска [Дата][1] в тексте.",
+                "Список `[Имя]` в коде.",
+            ),
+        )
+        for register in ("chat", "commit"):
+            with self.subTest(register=register):
+                self.assertNotIn(
+                    "hygiene.placeholder-name",
+                    self.ids("[Имя клиента], добрый день!", register=register),
+                )
+        # the earlier placeholder patterns keep working in chat
+        self.assertIn(
+            "hygiene.placeholder",
+            self.ids("[вставьте ссылку]", register="chat"),
+        )
+        self.assertNotIn("hygiene.placeholder", self.ids("[Имя клиента]"))
+
+    def test_unterminated_final_prose_line_is_an_observation(self) -> None:
+        def mark(text: str) -> int | None:
+            return SLOPSPANS.observations("x.md", text)["unterminated_end_line"]
+
+        cut = "# README\n\nЧтобы запустить сервис, нужно сначала настроить пе\n"
+        self.assertEqual(3, mark(cut))
+        self.assertEqual(3, mark(cut.rstrip("\n")))
+        for text in (
+            "Чтобы запустить сервис, нужно всё настроить.\n",
+            "Абзац из нескольких слов.\n\n| a | b |\n|---|---|\n| один два три | четыре пять |\n",
+            "Абзац из нескольких слов.\n\n```sh\nmake build and run all\n```\n",
+            "Абзац из нескольких слов.\n\n> цитата без точки из пяти слов\n",
+            "Абзац из нескольких слов.\n\n## Заголовок из пяти слов подряд\n",
+            "Абзац из нескольких слов.\n\n- пункт списка из пяти слов подряд\n",
+            "Абзац из нескольких слов.\n\nТри слова здесь\n",
+            "Абзац из нескольких слов.\n\nЛицензия: https://example.com/license\n",
+            "Абзац из нескольких слов.\n\nЗапустите сборку командой `make build`\n",
+            "Абзац из нескольких слов.\n\nСм. [лицензию на сайте проекта](https://example.com)\n",
+            "",
+        ):
+            with self.subTest(text=text):
+                self.assertIsNone(mark(text))
+
+    def test_unterminated_end_reaches_json_and_text_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cut.md"
+            path.write_text("Чтобы запустить сервис, нужно сначала настроить пе", encoding="utf-8")
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                code = SLOPSPANS.main(["--json", "--observations", str(path)])
+            self.assertEqual(0, code)
+            self.assertEqual(
+                1, json.loads(buffer.getvalue())["observations"][0]["unterminated_end_line"]
+            )
+            buffer = io.StringIO()
+            with redirect_stdout(buffer):
+                SLOPSPANS.main(["--observations", str(path)])
+            self.assertIn("unterminated_end_line=1", buffer.getvalue())
+
+    def test_new_rules_add_no_findings_to_the_clean_inputs(self) -> None:
+        new_rules = {
+            "soft.importance-puffery",
+            "soft.negative-parallelism",
+            "soft.filler",
+            "hygiene.mixed-script-word",
+            "soft.offer-tail",
+            "hygiene.placeholder-name",
+        }
+        clean = [ROOT / "evals" / "inputs" / "already_good_it.md"]
+        clean += [
+            ROOT / "evals" / "fixtures" / "slopspans-negative.md",
+            ROOT / "evals" / "inputs" / "perf_notes.md",
+        ]
+        for path in clean:
+            with self.subTest(path=path.name):
+                findings = SLOPSPANS.scan_text(
+                    path.name,
+                    path.read_text(encoding="utf-8"),
+                    self.rules,
+                    register="technical",
+                    tiers=set(SLOPSPANS.TIERS),
+                )
+                self.assertEqual(
+                    set(), {f.rule.id for f in findings} & new_rules
+                )
+
     def test_registry_validation_failure_paths(self) -> None:
         source = json.loads(
             (ROOT / "scripts" / "rules.json").read_text(encoding="utf-8")

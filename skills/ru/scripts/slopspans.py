@@ -67,6 +67,7 @@ SURFACES = ("plain", "markdown", "confluence-storage", "chat")
 INLINE_CODE = re.compile(r"`[^`\n]*`")
 FENCE = re.compile(r"^\s*(```|~~~)")
 HEADING_OR_ITEM = re.compile(r"^\s*(?:#{1,6}\s|[-+*]\s|\d+[.)]\s)")
+UNTERMINATED_END = re.compile(r"[^.!?…:»)\"'*_`]$")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?…])\s+")
 WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
 QUOTES = {"«": "»", "“": "”", '"': '"'}
@@ -495,6 +496,34 @@ def scan_text(
     return findings
 
 
+def unterminated_end_line(
+    text: str, segments: list[Segment], *, surface: str = "markdown"
+) -> int | None:
+    """Line of a final prose line of 4+ words with no closing mark, else None.
+
+    Only the last non-empty line of the document counts, and only when it is
+    prose: a heading, list item, table row, quote, code, a bare URL or a line
+    ending in inline code are not. Reports the place, never the cause (E22).
+    """
+    lines = visible_surface_text(text, surface).split("\n")
+    numbered = [(n, line.rstrip()) for n, line in enumerate(lines, 1) if line.strip()]
+    if not numbered or not segments:
+        return None
+    last, line = numbered[-1]
+    tail = segments[-1]
+    if tail.start_line + tail.text.count("\n") != last:
+        return None
+    if (
+        line.lstrip().startswith(("#", "|"))
+        or HEADING_OR_ITEM.match(line)
+        or "://" in line.split()[-1]
+        or len(WORD.findall(line)) < 4
+        or not UNTERMINATED_END.search(line)
+    ):
+        return None
+    return last
+
+
 def observations(path: str, text: str, *, surface: str = "markdown") -> dict[str, object]:
     """Return raw document measurements without thresholds or interpretation."""
     segments = prose_segments(text, surface=surface)
@@ -536,6 +565,9 @@ def observations(path: str, text: str, *, surface: str = "markdown") -> dict[str
         "em_dash_count": body.count("—"),
         "headings": len(headings),
         "list_items": len(list_items),
+        "unterminated_end_line": unterminated_end_line(
+            text, segments, surface=surface
+        ),
     }
 
 
@@ -589,7 +621,8 @@ def _render(findings: list[Finding], raw_observations: list[dict[str, object]]) 
                 "  {file} [{surface}]: words={words}, sentences={sentences}, "
                 "sentence_min={sentence_words_min}, sentence_max={sentence_words_max}, "
                 "sentence_mean={sentence_words_mean}, sentence_cv={sentence_length_cv}, "
-                "em_dash={em_dash_count}, headings={headings}, list_items={list_items}".format(
+                "em_dash={em_dash_count}, headings={headings}, list_items={list_items}, "
+                "unterminated_end_line={unterminated_end_line}".format(
                     **item
                 )
             )
