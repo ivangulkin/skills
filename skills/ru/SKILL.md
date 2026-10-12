@@ -181,6 +181,7 @@ license: MIT
 | Убрать воду | [editorial.md](references/editorial.md), [context.md](references/context.md) |
 | Слово грамматично, а сочетание сомнительно | [lexicon.md](references/lexicon.md) и словарь |
 | Просьба проверить орфографию | [spelling.md](references/spelling.md) — маршрут к нужному разделу |
+| Число, единица, процент, сокращение в прозе | [typography.md](references/typography.md) |
 | Перестроить длинный текст | [composition.md](references/composition.md), [cohesion.md](references/cohesion.md) |
 | Проверить утверждения по источникам | [source-integrity.md](references/source-integrity.md) и сами источники |
 | Ответить на вопрос о норме | [sources.md](references/sources.md), [disputed.md](references/disputed.md) |
@@ -201,6 +202,7 @@ license: MIT
 | Термин: склонение, род, графика | [terms.md](references/terms.md) | N |
 | Значение слова, сочетаемость, управление синонимов | [lexicon.md](references/lexicon.md) | M |
 | Орфография: куда идти за ответом | [spelling.md](references/spelling.md) | — |
+| Числа, единицы, проценты, валюта, сокращения | [typography.md](references/typography.md) | Y |
 | Вода, штампы, оценки без факта, пустой образ | [editorial.md](references/editorial.md) | E |
 | Композиция, мораль, слишком чистый вывод | [composition.md](references/composition.md) | X |
 | Где какое правило применимо | [context.md](references/context.md) | — |
