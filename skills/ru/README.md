@@ -44,7 +44,7 @@
 | `references/composition.md` | композиция, мораль, слишком чистый вывод: `X` |
 | `references/context.md` | где какое правило применимо: регистр, поверхность, аудитория |
 | `references/source-integrity.md` | проверка источников в правимом тексте |
-| `references/genres.md` | скелеты README, коммита, PR, ADR, runbook, ошибки, ответа |
+| `references/genres.md` | скелеты README, коммита, PR, ADR, runbook, ошибки, ответа, release notes, баг-репорта, комментария |
 | `references/disputed.md` | где источники расходятся и чего в них нет |
 | `references/sources.md` | иерархия источников, карта локальной библиотеки |
 | `maintainers/` | доказательная база и разбор чужих реализаций — не для правки |

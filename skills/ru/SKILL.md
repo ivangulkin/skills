@@ -193,7 +193,7 @@ license: MIT
 | Поправить знак в абзаце | нужный раздел [punctuation.md](references/punctuation.md); для тире — процедура «Как проверить тире» в начале файла |
 | Проверить грамотность фразы | [sentence.md](references/sentence.md), [punctuation.md](references/punctuation.md) |
 | Назвать раздел | [headings.md](references/headings.md) |
-| Написать или отредактировать README, ADR, runbook, PR | [contracts.md](references/contracts.md) для этого жанра плюс затронутые правила |
+| Написать или отредактировать README, ADR, runbook, PR, release notes, баг-репорт, комментарий в коде | [contracts.md](references/contracts.md) для этого жанра плюс затронутые правила |
 | Убрать воду | [editorial.md](references/editorial.md), [context.md](references/context.md) |
 | Слово грамматично, а сочетание сомнительно | [lexicon.md](references/lexicon.md) и словарь |
 | Просьба проверить орфографию | [spelling.md](references/spelling.md) — маршрут к нужному разделу |
