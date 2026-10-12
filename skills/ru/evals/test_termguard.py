@@ -328,6 +328,170 @@ return fmt.Errorf("retry failed: %w", err)
                 self.assertFalse(report.ok)
                 self.assertTrue(report.missing_protected)
 
+    def test_lost_hedges_and_quantifiers_are_reported_without_failing(self) -> None:
+        source = "Сборка обычно занимает около 5 минут, до 7 на холодном кэше."
+        edited = "Сборка занимает 5 минут, 7 на холодном кэше."
+        report = TERMGUARD.compare(source, edited, [])
+        self.assertTrue(report.ok, report.as_dict())
+        labels = {line.split(":")[0] for line in report.hedge_changes}
+        self.assertEqual({"обычно", "около", "до"}, labels)
+        line = next(item for item in report.hedge_changes if item.startswith("около"))
+        self.assertIn("вход «…", line)
+        self.assertIn("около 5 минут", line)
+        self.assertIn("результат —", line)
+        rendered = TERMGUARD._render(report)
+        self.assertIn("Проверка неполная", rendered)
+        self.assertIn("не доказывает, что область действия", rendered)
+        self.assertEqual(
+            report.hedge_changes, tuple(report.as_dict()["hedge_changes"])
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            before = Path(directory) / "before.md"
+            after = Path(directory) / "after.md"
+            before.write_text(source + "\n", encoding="utf-8")
+            after.write_text(edited + "\n", encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, TERMGUARD.main([str(before), str(after)]))
+
+    def test_hedge_counts_are_compared_not_sets(self) -> None:
+        report = TERMGUARD.compare(
+            "Часто падает, часто лечится.", "Часто падает и лечится.", []
+        )
+        self.assertEqual(1, len(report.hedge_changes))
+        self.assertTrue(report.hedge_changes[0].startswith("часто: 2 -> 1"))
+
+    def test_opinion_hedge_and_unchanged_counts_are_not_reported(self) -> None:
+        opinion = TERMGUARD.compare(
+            "Это может показаться странным.", "Это странно.", []
+        )
+        self.assertEqual((), opinion.hedge_changes)
+        same = TERMGUARD.compare(
+            "Можно указать номер. Только один из брокеров.",
+            "Номер можно указать. Один из брокеров, только он.",
+            [],
+        )
+        self.assertEqual((), same.hedge_changes)
+
+    def test_lost_modality_is_reported(self) -> None:
+        report = TERMGUARD.compare(
+            "Можно указать номер заказа.", "Укажите номер заказа.", []
+        )
+        self.assertTrue(report.ok)
+        self.assertEqual(["можно: 1 -> 0"], [x.split(";")[0] for x in report.hedge_changes])
+
+    def test_hedges_inside_protected_spans_are_not_counted(self) -> None:
+        source = "Сервис `обычно` падает. «Иногда» он не отвечает."
+        edited = "Сервис `редко` падает. «Бывает» он не отвечает."
+        self.assertEqual((), TERMGUARD.compare(source, edited, []).hedge_changes)
+
+    def test_prepositions_count_only_before_a_number(self) -> None:
+        report = TERMGUARD.compare(
+            "От broker до consumer. От 5 до 7 запросов.",
+            "От broker до consumer. 5-7 запросов.",
+            [],
+        )
+        labels = sorted(line.split(":")[0] for line in report.hedge_changes)
+        self.assertEqual(["до", "от"], labels)
+        self.assertTrue(all("-> 0" in line for line in report.hedge_changes))
+
+    def test_unit_beyond_the_old_closed_list_is_reported_not_failed(self) -> None:
+        lost = TERMGUARD.compare("Рост на 3 п. п.", "Рост на 3 процента", [])
+        self.assertTrue(lost.ok, lost.as_dict())
+        self.assertEqual((), lost.missing_numbers + lost.added_numbers)
+        labels = sorted(line.split(":")[0] for line in lost.unit_changes)
+        self.assertEqual(["3 %", "3 п. п."], labels)
+        self.assertIn("Единицы вне закрытого списка", TERMGUARD._render(lost))
+        with tempfile.TemporaryDirectory() as directory:
+            before = Path(directory) / "before.md"
+            after = Path(directory) / "after.md"
+            before.write_text("Рост на 3 п. п.\n", encoding="utf-8")
+            after.write_text("Рост на 3 процента\n", encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(0, TERMGUARD.main([str(before), str(after)]))
+
+        for source, edited in (
+            ("Через 5 дней", "Через 5 дней"),
+            ("Рост на 3 процента", "Рост на 3 процентов"),
+            ("Рост на 3 процентных пункта", "Рост на 3 п.п."),
+            ("Цена 100 ₽", "Цена 100 руб."),
+            ("Было в 2026 году", "Было в 2026 г."),
+        ):
+            with self.subTest(source=source):
+                report = TERMGUARD.compare(source, edited, [])
+                self.assertTrue(report.ok, report.as_dict())
+                self.assertEqual((), report.unit_changes)
+
+        for source, edited in (
+            ("Срок 5 дней", "Срок 5 недель"),
+            ("Цена $5", "Цена €5"),
+            ("Хватит 3 месяца", "Хватит 3 года"),
+            ("Тираж 500 шт", "Тираж 500 штук и 7 шт"),
+        ):
+            with self.subTest(source=source):
+                self.assertTrue(TERMGUARD.compare(source, edited, []).unit_changes)
+
+    def test_multiplier_stays_with_its_unit_in_the_report(self) -> None:
+        report = TERMGUARD.compare("Цена 5 млн рублей.", "Цена 5 млн.", [])
+        self.assertTrue(report.ok, report.as_dict())
+        self.assertEqual(1, len(report.unit_changes), report.unit_changes)
+        self.assertTrue(report.unit_changes[0].startswith("5 млн руб: 1 -> 0"))
+        abbreviated = TERMGUARD.compare("Цена 5 тыс. рублей.", "Цена 5 тыс.", [])
+        self.assertTrue(abbreviated.unit_changes[0].startswith("5 тыс. руб: 1 -> 0"))
+        for text in ("Цена 5 тыс. рублей.", "Выручка 2 млрд ₽.", "Бюджет 3k $"):
+            with self.subTest(text=text):
+                self.assertEqual((), TERMGUARD.compare(text, text, []).unit_changes)
+        # a multiplier alone is NUMBER's job and is not reported twice
+        self.assertEqual(
+            (), TERMGUARD.compare("Тираж 5 млн.", "Тираж 5 млн.", []).unit_changes
+        )
+
+    def test_units_inside_the_old_list_still_fail_the_check(self) -> None:
+        report = TERMGUARD.compare("Рост на 40%", "Рост на 40 мс", [])
+        self.assertFalse(report.ok)
+        self.assertFalse(TERMGUARD.compare("Рост на 3 п. п.", "Рост на 3 %", []).ok)
+
+    def test_latin_names_that_appear_or_vanish_are_reported(self) -> None:
+        appeared = TERMGUARD.compare("Данные кэшируются.", "Данные кэшируются в Redis.", [])
+        self.assertTrue(appeared.ok, appeared.as_dict())
+        self.assertEqual(1, len(appeared.latin_name_changes))
+        self.assertTrue(appeared.latin_name_changes[0].startswith("Redis: 0 -> 1"))
+        self.assertIn("Латинские имена", TERMGUARD._render(appeared))
+
+        vanished = TERMGUARD.compare("Читает Kafka.", "Читает брокер.", [])
+        self.assertTrue(vanished.latin_name_changes[0].startswith("Kafka: 1 -> 0"))
+
+        self.assertEqual(
+            (), TERMGUARD.compare("Читает Kafka.", "Kafka читает.", []).latin_name_changes
+        )
+
+    def test_latin_names_in_code_quotes_and_urls_are_not_counted(self) -> None:
+        source = "Запуск `Redis` и «Kafka». https://Example.com/Docs"
+        edited = "Запуск `Valkey` и «Pulsar». https://Example.com/Guide"
+        report = TERMGUARD.compare(source, edited, [])
+        self.assertEqual((), report.latin_name_changes)
+
+    def test_latin_names_in_straight_quotes_are_not_counted(self) -> None:
+        report = TERMGUARD.compare('Нода "Redis" работает.', 'Нода "Valkey" работает.', [])
+        self.assertEqual((), report.latin_name_changes)
+
+    def test_straight_quote_may_wrap_a_line_but_not_a_paragraph(self) -> None:
+        wrapped = TERMGUARD.compare(
+            'Он сказал: "Кэш\nв Redis хранит данные" и ушёл.',
+            'Он сказал: "Кэш\nв Valkey хранит данные" и ушёл.',
+            [],
+        )
+        self.assertEqual((), wrapped.latin_name_changes)
+
+        # A lone " (inches) must not hide the next paragraph.
+        lone = TERMGUARD.compare(
+            'Диск на 5" стоит.\n\nКэш в Redis. Конец".',
+            'Диск на 5" стоит.\n\nКэш в Valkey. Конец".',
+            [],
+        )
+        labels = sorted(line.split(":")[0] for line in lone.latin_name_changes)
+        self.assertEqual(["Redis", "Valkey"], labels)
+
 
 if __name__ == "__main__":
     unittest.main()
