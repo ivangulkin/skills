@@ -261,6 +261,38 @@ class ValidateSkillTests(unittest.TestCase):
             errors = VALIDATE_SKILL.validate(root)
             self.assertTrue(any("Dangling rule reference T99" in item for item in errors))
 
+    def test_range_from_first_card_must_reach_the_last(self) -> None:
+        # T3 exists, so a range that stops at T2 is stale. A table of contents
+        # item names a section's span, and inside T3 the range means "the cards
+        # before this one", under its own subheadings too. Each case runs on
+        # its own: in one file a missed error and a false one cancel out.
+        cases = [
+            ("Ids: `T1`…`T2`.", "", 1),
+            ("See [T3](#t3-third): T1–T2.", "", 1),
+            ("- [Third](#t3-third) — T1–T2", "", 0),
+            ("", "### Examples\n\nAs T1–T2.", 0),
+        ]
+        for before, inside, expected in cases:
+            with self.subTest(before=before, inside=inside), tempfile.TemporaryDirectory() as directory:
+                root = self.make_skill(directory, "name: sample\ndescription: Sample skill.")
+                (root / "references" / "other.md").write_text(
+                    f"# Other\n\n{before}\n\n## T2. Second\n\n## T3. Third\n\n{inside}\n",
+                    encoding="utf-8",
+                )
+                errors = VALIDATE_SKILL.validate(root)
+                self.assertEqual(expected, sum("Range T1–T2" in item for item in errors))
+
+    def test_proof_label_has_one_spelling(self) -> None:
+        cases = [("**Что доказывает находка.**", 1), ("**Что находка доказывает:**", 0)]
+        for label, expected in cases:
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                root = self.make_skill(directory, "name: sample\ndescription: Sample skill.")
+                (root / "references" / "other.md").write_text(
+                    f"# Other\n\n{label} Что-то.\n", encoding="utf-8"
+                )
+                errors = VALIDATE_SKILL.validate(root)
+                self.assertEqual(expected, sum("Field label" in item for item in errors))
+
     def test_archived_results_are_read_for_duplicates_but_not_references(self) -> None:
         # Reports use P0/P1 as priorities; they are not rule references.
         with tempfile.TemporaryDirectory() as directory:
