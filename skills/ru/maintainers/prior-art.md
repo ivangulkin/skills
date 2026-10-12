@@ -3,13 +3,14 @@
 Читай только при развитии skill, добавлении rule или сравнении с другим
 humanizer. Для обычной правки файл не нужен.
 
-Глубокий аудит обновлён 2026-08-23 по локальным clones, а не по README:
+Глубокий аудит обновлён 2026-08-23 по локальным clones, а не по README; разбор
+smixs и ilyautov перепроверен 2026-10-10 по более новым коммитам:
 
 - `Vladimir-Human/humanizer-ru`, commit
   `3106135980c9de04889047f52a13f31e6fa06726` (`v3.14.0`);
-- `smixs/humanizer-ru`, commit
+- `smixs/humanizer-ru`, commit `ff990df` (`v1.7`); раньше —
   `91f70df11f7fb30722e6fcf18803d402e2d86a53` (`1.6.1` по metadata);
-- `ilyautov/humanizer-ru`, commit
+- `ilyautov/humanizer-ru`, commit `f2fe1f3` (`v3.31.3`); раньше —
   `f2d43d6e8d61903660cc3091160d8b987c2ad613`.
 
 Все три проекта MIT и быстро меняются. Перед новым заимствованием проверяй current main,
@@ -130,10 +131,11 @@ operator action, preconditions, verification, rollback, acceptance condition,
 owner и links.
 
 Runtime не переносится. Linter объявляет `ERROR` длинное/среднее тире,
-technical notation (`+`, `=`, `→`, `vs`), negative parallelism и tech jargon,
-после чего считает `errors * 3 + warnings`. На двух RFC получено 61/118 errors
-и severity 188/362; на clean negative fixture помечены корректное тире и
-range `3–4`.
+technical notation (`+`, `=`, `→`, `vs`) и negative parallelism, после чего
+считает `errors * 3 + warnings`. На двух RFC получено 61/118 errors и severity
+188/362; на clean negative fixture помечены корректное тире и range `3–4`.
+Tech jargon числится hard ban только в `SKILL.md`; в `lint.py` его нет, как и
+риторических вопросов (проверено на `ff990df`).
 
 Fact-Lock декларируется, но examples добавляют `2025`, «40 компаний», `30%`,
 `70%`, нового actor и calendar detail. Declarative evals не имеют runner,
@@ -142,6 +144,30 @@ Fact-Lock декларируется, но examples добавляют `2025`, �
 Вывод: borrow Function Contract и input-as-data, reject hard bans, score и
 runtime rewrite policy.
 
+### v1.7 (`ff990df`, проверено 2026-10-10)
+
+Изменились пять файлов (`SKILL.md`, `patterns.md`, `lint.py`, `CHANGELOG.md`,
+`README.md`); evals и `knowledge/` не тронуты.
+
+- Счётчик каталога исправлен: заявлено 38 паттернов, описано 38 (раньше 34 против
+  37). Новый паттерн 38 «машинный скелет текста» с outline-тестом и две позиционные
+  проверки линтера (`абзацы под копирку`: ≥5 абзацев с разбросом длины <25 %;
+  `списки по три`: ≥2 списков, все по три пункта). Reject: это числа и квоты, а
+  README с двумя списками по три пункта срабатывает; outline-тест требует
+  выдумывать возражения и противоречит W11, W12.
+- Detect-режим получил вердикт «сверхкоррекция» («обработан инструментом») — вердикт
+  о происхождении, политикой отвергнут. Как ловушка для наших evals идея годится.
+- Не исправлено из прежних находок: Fact-Lock в примерах (ещё не менее 12 «После»
+  выдумывают факты), `ERROR` на тире и нотацию (`Kafka — распределённый лог`,
+  `клиент → брокер → консьюмер`, `Rust vs Go`), нет защиты blockquote (текст после
+  `>` остаётся в проверке).
+- Каталог по-прежнему содержит `имплементировать → внедрить`, `консенсус →
+  согласие`, `фидбек → отзыв` без условия. Сдвиги смысла; для нас — строка
+  `имплементировать` в таблице автозамен P3. `консенсус` и `фидбек` не взяты: словари
+  определяют `консенсус` как «общее согласие», а для `фидбека` сверять не с чем.
+
+`lint.py` не запускался: регулярные выражения и пороги проверены на копиях.
+
 ## ilyautov/humanizer-ru
 
 Source: [repository](https://github.com/ilyautov/humanizer-ru).
@@ -149,12 +175,16 @@ Author: Ilya Utov. License: MIT.
 
 ### Что внутри
 
-v3.16.1: 58 patterns / 13 categories, 20 hard bans, three modes, voice
-passport, traffic-light triage, five-pass rewrite, scanner modules for markers,
-rhythm, morphology, structure and score; trigger eval, AINL calibration,
-raw/human/humanized corpus, optional detector/LLM judge/faithfulness.
+v3.16.1 (разбор 2026-08-23): 58 patterns / 13 categories, 20 hard bans, three
+modes, voice passport, traffic-light triage, five-pass rewrite, scanner modules
+for markers, rhythm, morphology, structure and score; trigger eval, AINL
+calibration, raw/human/humanized corpus, optional detector/LLM judge/faithfulness.
 
-После установки pinned `razdel==0.5.0` и `pymorphy3==2.0.6` прошли:
+v3.31.3 (`f2fe1f3`, 2026-10-10): 67 patterns / 16 categories, 21 hard bans, 23
+scanner categories. `является` ловится с частотным порогом, `таким образом` только
+как вводное.
+
+После установки pinned `razdel==0.5.0` и `pymorphy3==2.0.6` на v3.16.1 прошли:
 
 - `test_gates`: 26;
 - `test_scan`: 12;
@@ -216,13 +246,20 @@ independent semantic eval.
 
 ### Проверенный false positive на IT fixture
 
-Upstream scanner не защищает code fences, blockquotes и inline code, а docs
-genre отсутствует: default `marketing`. На нашем clean
+На v3.16.1 upstream scanner не защищал code fences, blockquotes и inline code, а
+docs genre отсутствует: default `marketing`. На нашем clean
 `slopspans-negative.md` он дал four hard bans / score 68, поймав «Данный» и тире
 в fenced Go comment и «Стоит отметить» внутри blockquote. Regex false range
 пометил clean «от broker до consumer».
 
+С v3.19.3 (2026-09-07) защита есть: `markdown.py` и `analyze()` маскируют блоки
+кода по CommonMark, inline code, цитаты `>` и короткие цитаты в «ёлочках» до
+подсчёта; границы проверены таблицей из 27 вариантов. Текущая регулярка ложного
+диапазона латиницу не принимает, поэтому «от broker до consumer» больше не
+срабатывает (по тексту регулярки, код не запускался). Docs genre всё ещё нет.
+
 Текущий scanner `no-ai-slop` защищает такие spans; эту архитектуру сохраняем.
+Метод апстрима с таблицей вариантов границ полезен, нового правила он не даёт.
 
 ### Что реально показывает AINL calibration
 
@@ -233,6 +270,34 @@ hits до 4.2%, но unseen generator получал 2.1% против 3.2% huma
 
 Это доказательство register gating и отказа от detector claim, не source новых
 bans.
+
+Дальнейшая калибровка (2026-10-10, по отчётам апстрима до `f2fe1f3`) тот же вывод
+подтверждает на трёх корпусах: AINL (35 158 аннотаций, 8 769 человеческих), M4
+(5 759 пар) и LLMTrace (14 763 текста, 30 генераторов).
+
+- Strict mode ловит ≥1 hard ban у людей и моделей почти одинаково: 35,9 % против
+  26,1–35,8 % (AINL), 51,9 % против 50,0 % (M4), 40,4 % против 48,5 % (LLMTrace).
+  Бинарный критерий «хотя бы один hard ban в документе» классы не разделяет.
+  Плотность маркеров на 100 слов разделяет — в LLMTrace в 2,3 раза, жанровый
+  фильтр в 2,8 раза; на парах M4 уверенно отделяется gpt, но не davinci-003.
+  Это различие классов в корпусе, а не признак одного документа: скилл
+  происхождение не судит и плотность основанием правки не делает.
+- `является`, `данный`, длинное тире и калька переворачиваются при смене домена;
+  канцелярит не разделяет классы нигде. Стабильны в двух доменах лишь несколько
+  оборотов (`играет ключевую роль`, лифт 5,7 / 9,4).
+- Единственный слой, где у людей почти 0 %, — следы инструмента и обвязка чата.
+  Нулевой счёт не норма человека: без единого маркера 15–42 % человеческих текстов.
+- Локальная правка («цитата → чем мешает читателю → действие», места без дефекта
+  помечены KEEP, число находок не задаёт объём) дала 1 смысловое замечание на 65
+  ответов против 15 у полного скилла и 18 у обычного редактора (195 вызовов).
+  Надёжность средняя: один исполнитель, оценщики — агенты, часть исходников
+  синтетическая. Разметку мы не берём: у нас есть таблица режима «проверка».
+- Оговорки при факте инструкция не удерживала (5 снятых из 25 до и после),
+  механическая сверка до и после находила потерю; на этом стоит сверка оговорок в
+  `termguard`.
+- В `f2fe1f3` апстрим сам убрал то, что мы отвергли в августе: «добавь авторскую
+  позицию», «1–2 частицы на абзац», «20–30 % жёстких склеек», «замени тире
+  дефисом». Подтверждение прошлого аудита, не новая причина что-то брать.
 
 ## Другие проекты
 
