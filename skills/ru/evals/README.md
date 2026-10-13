@@ -35,17 +35,17 @@ flexible whitespace, literal/alternative term specs и Confluence auto-surface.
 Manual fixtures:
 
 ```text
-python3 ../scripts/slopspans.py \
-  fixtures/slopspans-positive.md
+python3 scripts/slopspans.py \
+  evals/fixtures/slopspans-positive.md
 
-python3 ../scripts/slopspans.py \
-  --register technical fixtures/slopspans-negative.md
+python3 scripts/slopspans.py \
+  --register technical evals/fixtures/slopspans-negative.md
 
-python3 ../scripts/slopspans.py \
-  --artifacts-only fixtures/slopspans-positive.md
+python3 scripts/slopspans.py \
+  --artifacts-only evals/fixtures/slopspans-positive.md
 
-python3 ../scripts/slopspans.py --register technical \
-  --surface confluence-storage fixtures/confluence-rfc-clean.xhtml
+python3 scripts/slopspans.py --register technical \
+  --surface confluence-storage evals/fixtures/confluence-rfc-clean.xhtml
 ```
 
 `--artifacts-only` должен вернуть exit 1 только на strict tool residue.
