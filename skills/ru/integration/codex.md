@@ -13,7 +13,7 @@
 
 Скилл ставится как обычный standalone skill: каталог `ru` кладётся в один из
 корней, которые Codex обходит (`$CODEX_HOME/skills`, `$HOME/.agents/skills`),
-или симлинком оттуда. В dotfiles это делает `install.sh`.
+или симлинком оттуда. Команды — в [README репозитория](https://github.com/ivangulkin/skills#установка).
 
 Что установлено, видно по симлинку:
 
@@ -83,12 +83,11 @@ ls -l ~/.codex/skills/ru
 ```bash
 ls -l ~/.codex/skills/ru
 grep -c 'Apply the `ru` skill' ~/.codex/AGENTS.md
-CODEX=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
-$CODEX debug prompt-input | grep -A80 'Available skills'   # дважды: первый прогон бывает холодным
+codex debug prompt-input | grep -A80 'Available skills'   # дважды: первый прогон бывает холодным
 ```
 
-Вторая команда должна вернуть `1`. Ноль означает, что композиция инструкций не
-доехала: `./install.sh --diff` покажет, что разошлось.
+Вторая команда должна вернуть `1`. Ноль означает, что абзац о `ru` в
+`~/.codex/AGENTS.md` не стоит.
 
 Что скилл действительно вызывается, проверяется только в сессии: попроси `$ru`
 и посмотри, открылся ли `SKILL.md`.
