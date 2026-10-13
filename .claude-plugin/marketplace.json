@@ -1,0 +1,15 @@
+{
+  "name": "ivangulkin-skills",
+  "owner": { "name": "Ivan Gulkin" },
+  "description": "Skills for Claude Code and Codex.",
+  "plugins": [
+    {
+      "name": "ru",
+      "source": "./",
+      "description": "Russian writing and editing: grammar, punctuation, headings, editorial defects, with the meaning of the edited text protected.",
+      "category": "writing",
+      "strict": false,
+      "skills": ["./skills/ru"]
+    }
+  ]
+}
