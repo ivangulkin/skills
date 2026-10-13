@@ -236,7 +236,7 @@ train+validation narrative space, затем percentile относительно
 - Pangram Labs, commercial detector company, дала OpenRouter credits. Это
   disclosed support, не доказательство invalidity, но часть conflict review.
 
-Нarrow checks: length-only classifier 55.9; Narrative остаётся 93.2 на
+Narrow checks: length-only classifier 55.9; Narrative остаётся 93.2 на
 length-matched subset. Memorization-risk prompt removal меняет scores не более
 чем на 0.27 points. Topic F1 90.0–96.2, omnibus test not significant.
 
