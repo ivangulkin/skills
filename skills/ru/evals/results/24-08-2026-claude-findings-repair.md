@@ -1,4 +1,4 @@
-# Follow-up repair по замечаниям Claude — 2026-08-24
+# Follow-up repair по замечаниям Claude — 24.08.2026
 
 ## Результат
 
@@ -125,7 +125,7 @@ Codex и Claude. Git worktree намеренно не stage/commit.
   там битые citation artifacts лежат намеренно, как вход сканера.
 - README называет PyYAML: `slopspans.py` и `termguard.py` работают на stdlib, а
   `validate_skill.py` и весь suite без неё падают на импорте.
-- Устаревшие ячейки в сравнительной таблице `2026-08-23-three-humanizers.md`
+- Устаревшие ячейки в сравнительной таблице `23-08-2026-three-humanizers.md`
   (Confluence surface, source integrity, число тестов) приведены к фактам, под
   таблицей сказано, что колонка `no-ai-slop` описывает состояние после repair, а
   три остальные зафиксированы на своих commit'ах. Та же ячейка поправлена в
@@ -138,13 +138,13 @@ Codex и Claude. Git worktree намеренно не stage/commit.
 тестов остался 62.
 
 - Discovery path. Личный каталог skills переехал из `~/.agents/skills` в
-  `~/.codex/skills` 2026-08-24, уже после repair-прогонов. README и
-  `2026-08-23-three-humanizers.md` названы по фактическому пути, старый указан
+  `~/.codex/skills` 24.08.2026, уже после repair-прогонов. README и
+  `23-08-2026-three-humanizers.md` названы по фактическому пути, старый указан
   как историческая справка. Официальная документация OpenAI называет user scope
   `~/.agents/skills` — это расхождение зафиксировано в README отдельной строкой,
   чтобы установка на другой машине не пошла по неверному пути.
 - Два счётчика `60` пропущены вторым проходом: «Результат внедрения» в
-  `2026-08-23-three-humanizers.md` и статусная строка в
+  `23-08-2026-three-humanizers.md` и статусная строка в
   `three-humanizers-audit.html`. Обе теперь 62.
 - `slopspans.py` срезает sentence anchor и для отображения, не только для номера
   строки: выдаётся `Однако,` вместо `. Однако,`. Матч, состоящий только из этой

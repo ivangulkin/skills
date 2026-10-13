@@ -89,9 +89,9 @@ class EvalDefinitionTests(unittest.TestCase):
                 self.assertTrue(case["reason"].strip())
 
     def test_audit_reports_are_present(self) -> None:
-        self.assertTrue((EVALS / "results" / "2026-08-21-forward.md").is_file())
+        self.assertTrue((EVALS / "results" / "21-08-2026-forward.md").is_file())
         self.assertTrue(
-            (EVALS / "results" / "2026-08-23-three-humanizers.md").is_file()
+            (EVALS / "results" / "23-08-2026-three-humanizers.md").is_file()
         )
 
     def test_new_safety_and_surface_contract_cases_are_present(self) -> None:

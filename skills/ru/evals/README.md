@@ -93,5 +93,5 @@ Regex green не доказывает semantic fidelity. Behavioral outputs пр
 отдельно, лучше независимым agent без intended answer.
 
 Independent semantic run и fail/repair cycle:
-`results/2026-08-21-forward.md`. Более поздний audit/runtime implementation
-record: `results/2026-08-23-three-humanizers.md`.
+`results/21-08-2026-forward.md`. Более поздний audit/runtime implementation
+record: `results/23-08-2026-three-humanizers.md`.

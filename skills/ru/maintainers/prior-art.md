@@ -3,8 +3,8 @@
 Читай только при развитии skill, добавлении rule или сравнении с другим
 humanizer. Для обычной правки файл не нужен.
 
-Глубокий аудит обновлён 2026-08-23 по локальным clones, а не по README; разбор
-smixs и ilyautov перепроверен 2026-10-10 по более новым коммитам:
+Глубокий аудит обновлён 23.08.2026 по локальным clones, а не по README; разбор
+smixs и ilyautov перепроверен 10.10.2026 по более новым коммитам:
 
 - `Vladimir-Human/humanizer-ru`, commit
   `3106135980c9de04889047f52a13f31e6fa06726` (`v3.14.0`);
@@ -144,7 +144,7 @@ Fact-Lock декларируется, но examples добавляют `2025`, �
 Вывод: borrow Function Contract и input-as-data, reject hard bans, score и
 runtime rewrite policy.
 
-### v1.7 (`ff990df`, проверено 2026-10-10)
+### v1.7 (`ff990df`, проверено 10.10.2026)
 
 Изменились пять файлов (`SKILL.md`, `patterns.md`, `lint.py`, `CHANGELOG.md`,
 `README.md`); evals и `knowledge/` не тронуты.
@@ -175,12 +175,12 @@ Author: Ilya Utov. License: MIT.
 
 ### Что внутри
 
-v3.16.1 (разбор 2026-08-23): 58 patterns / 13 categories, 20 hard bans, three
+v3.16.1 (разбор 23.08.2026): 58 patterns / 13 categories, 20 hard bans, three
 modes, voice passport, traffic-light triage, five-pass rewrite, scanner modules
 for markers, rhythm, morphology, structure and score; trigger eval, AINL
 calibration, raw/human/humanized corpus, optional detector/LLM judge/faithfulness.
 
-v3.31.3 (`f2fe1f3`, 2026-10-10): 67 patterns / 16 categories, 21 hard bans, 23
+v3.31.3 (`f2fe1f3`, 10.10.2026): 67 patterns / 16 categories, 21 hard bans, 23
 scanner categories. `является` ловится с частотным порогом, `таким образом` только
 как вводное.
 
@@ -252,7 +252,7 @@ docs genre отсутствует: default `marketing`. На нашем clean
 в fenced Go comment и «Стоит отметить» внутри blockquote. Regex false range
 пометил clean «от broker до consumer».
 
-С v3.19.3 (2026-09-07) защита есть: `markdown.py` и `analyze()` маскируют блоки
+С v3.19.3 (07.09.2026) защита есть: `markdown.py` и `analyze()` маскируют блоки
 кода по CommonMark, inline code, цитаты `>` и короткие цитаты в «ёлочках» до
 подсчёта; границы проверены таблицей из 27 вариантов. Текущая регулярка ложного
 диапазона латиницу не принимает, поэтому «от broker до consumer» больше не
@@ -271,7 +271,7 @@ hits до 4.2%, но unseen generator получал 2.1% против 3.2% huma
 Это доказательство register gating и отказа от detector claim, не source новых
 bans.
 
-Дальнейшая калибровка (2026-10-10, по отчётам апстрима до `f2fe1f3`) тот же вывод
+Дальнейшая калибровка (10.10.2026, по отчётам апстрима до `f2fe1f3`) тот же вывод
 подтверждает на трёх корпусах: AINL (35 158 аннотаций, 8 769 человеческих), M4
 (5 759 пар) и LLMTrace (14 763 текста, 30 генераторов).
 

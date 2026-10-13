@@ -3,7 +3,7 @@
 Читай этот файл только при развитии structural pass или когда нужно обосновать,
 почему после line edit проверяется shape текста.
 
-Первичные источники, проверены 2026-08-21:
+Первичные источники, проверены 21.08.2026:
 
 - Russell, Rajendhran, Pham, Iyyer & Wieting, *StoryScope: Investigating
   idiosyncrasies in AI fiction*, v6, август 2026:

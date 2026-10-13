@@ -1,6 +1,6 @@
 # Аудит трёх `humanizer-ru` и решение для `no-ai-slop`
 
-Дата проверки: 2026-08-23.
+Дата проверки: 23.08.2026.
 
 ⚠️ **Исторический документ.** Скилл `no-ai-slop`, о котором он говорит, слит в
 `ru` и удалён; alias не оставлен. Выводы о трёх upstream-реализациях остаются в
@@ -39,14 +39,14 @@ scanner'ы, tests/evals, packaging и installation layout:
 
 | Проект | Зафиксированная версия | Commit | Роль в проверке |
 |---|---|---|---|
-| `no-ai-slop` | рабочее дерево 2026-08-23 | локальная версия | Целевой skill |
+| `no-ai-slop` | рабочее дерево 23.08.2026 | локальная версия | Целевой skill |
 | [Vladimir-Human/humanizer-ru](https://github.com/Vladimir-Human/humanizer-ru/tree/3106135980c9de04889047f52a13f31e6fa06726) | `v3.14.0` | `3106135980c9de04889047f52a13f31e6fa06726` | Evidence-oriented upstream |
 | [smixs/humanizer-ru](https://github.com/smixs/humanizer-ru/tree/91f70df11f7fb30722e6fcf18803d402e2d86a53) | `1.6.1` по metadata | `91f70df11f7fb30722e6fcf18803d402e2d86a53` | Compact rule-based adaptation |
 | [ilyautov/humanizer-ru](https://github.com/ilyautov/humanizer-ru/tree/f2d43d6e8d61903660cc3091160d8b987c2ad613) | `v3.16.1` | `f2d43d6e8d61903660cc3091160d8b987c2ad613` | Detector- and rhythm-oriented variant |
 
 Три независимых аудита шли параллельно, после чего выводы были сверены с
 личным чтением файлов и общими fixtures. Для `no-ai-slop` также использованы
-[семантический forward test](2026-08-21-forward.md) и две реальные Kafka RFC,
+[семантический forward test](21-08-2026-forward.md) и две реальные Kafka RFC,
 ранее спулленные из Confluence. Визуальные таблицы лежат вне этого репозитория,
 в каталоге сравнения `humanizer-it-comparison-2026-08-22`: пофайловое сравнение
 RFC — `comparison-table.html`, сводный verdict по четырём решениям —
@@ -88,8 +88,8 @@ Scanner'ы решают разные задачи, поэтому их числ�
 | Source integrity | Отдельный модуль `references/source-integrity.md` плюс checklist в `SKILL.md` | Сильный evidence registry и аккуратные offline anomalies | Проверка уже, DOI/ISBN и claim alignment почти не покрыты | Sources catalog подробный, но runtime смещён к detector signals |
 | Исполняемые tests | 62 unit tests + forward semantic eval с зафиксированным fail/repair | 43 gates, 173 unittest, 39 marker cases, 107 soft selftests | Только reproducible linter self-test; scenarios в JSON без runner/CI | Большой runnable suite, но fidelity humanized outputs не является gate |
 
-Колонка `no-ai-slop` описывает состояние после repair-проходов 2026-08-23 и
-2026-08-24. Три остальные колонки зафиксированы на commit'ах из таблицы выше и
+Колонка `no-ai-slop` описывает состояние после repair-проходов 23.08.2026 и
+24.08.2026. Три остальные колонки зафиксированы на commit'ах из таблицы выше и
 позже не перепроверялись.
 
 ## Общие IT fixtures
@@ -300,8 +300,8 @@ no-ai-slop/
   -> ~/git/home/ai/no-ai-slop
 ```
 
-На 2026-08-23 Codex-симлинк лежал в `~/.agents/skills`. Личный каталог skills
-переехал в `~/.codex/skills` 2026-08-24; путь выше отражает состояние после
+На 23.08.2026 Codex-симлинк лежал в `~/.agents/skills`. Личный каталог skills
+переехал в `~/.codex/skills` 24.08.2026; путь выше отражает состояние после
 переезда.
 
 До исправления установка Vladimir была сделана неверно:
@@ -313,7 +313,7 @@ no-ai-slop/
 
 В root checkout лежит один `SKILL.md`, а внутри — ещё один
 `dsh/skills/humanizer-ru/SKILL.md`. Поэтому Codex обнаруживает два одинаковых
-`humanizer-ru`. Оба symlink удалены из active discovery 2026-08-23.
+`humanizer-ru`. Оба symlink удалены из active discovery 23.08.2026.
 
 Official skill guidance также говорит держать skill focused на одной задаче,
 делать description scope-aware и не рассчитывать на merge одноимённых skills.
@@ -335,7 +335,7 @@ Official skill guidance также говорит держать skill focused �
 
 ## Результат внедрения
 
-На 2026-08-23 выполнено:
+На 23.08.2026 выполнено:
 
 - skill перенесён в root `no-ai-slop`; plugin manifest и marketplace удалены;
 - `agents/openai.yaml` явно оставляет implicit invocation включённым;
@@ -348,8 +348,8 @@ Official skill guidance также говорит держать skill focused �
 - scanner и termguard получили `--surface confluence-storage`;
 - добавлены standalone packaging gate, Confluence fixtures, source audit,
   runbook contract и embedded-instruction evals;
-- после follow-up repair 2026-08-24 проходят 62 deterministic tests; детали —
-  в `2026-08-24-claude-findings-repair.md`;
+- после follow-up repair 24.08.2026 проходят 62 deterministic tests; детали —
+  в `24-08-2026-claude-findings-repair.md`;
 - обе Kafka RFC дают 0 mechanical findings в новом Confluence mode;
 - `termguard --surface confluence-storage` подтверждает сохранность numeric
   tokens, URLs, protected spans и markup для обеих RFC. Terminology Lock
