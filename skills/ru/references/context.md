@@ -173,7 +173,7 @@ Confluence защищённые блоки задаются тегами и ма
 решено ставить.
 
 Правила функции заголовка и вопросительности остаются на своих местах:
-[headings.md](headings.md), H1–H15, и [questions.md](questions.md), Q1–Q10.
+[headings.md](headings.md), H1–H15, и [questions.md](questions.md), Q1–Q11.
 Здесь только выбор между допустимыми формами.
 
 ---
