@@ -7,6 +7,7 @@
 | Скилл | Что делает |
 |---|---|
 | [`ru`](skills/ru) | Пишет, правит и проверяет русский текст: знаки, заголовки, перечни, вода и штампы. Факты, числа, условия и термины правки не меняет |
+| [`duo`](skills/duo), [`duo-design`](skills/duo-design), [`duo-review`](skills/duo-review) | Согласование плана и ревью работы с Codex в постоянном треде | в разработке; только в этой ветке, в marketplace не входят |
 
 ## Установка
 
@@ -55,6 +56,12 @@ ln -s ~/skills/skills/ru ~/.claude/skills/ru    # для Codex: ~/.codex/skills/
 cd skills/ru
 python3 -m unittest discover -s evals -p 'test_*.py'
 python3 scripts/validate_skill.py    # нужен PyYAML
+```
+
+Тесты `duo` идут против поддельного Codex, без ключа и квоты:
+
+```bash
+bash skills/duo/tests/run-tests.sh    # нужен jsonschema
 ```
 
 ## Лицензия
