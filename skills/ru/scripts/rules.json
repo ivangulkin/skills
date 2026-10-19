@@ -739,6 +739,21 @@
         "negative": "## Основные принципы работы системы",
         "boundary": "## Москва и Санкт-Петербург"
       }
+    },
+    {
+      "id": "format.latin-apostrophe-ending",
+      "label": "Русское окончание через апостроф после латиницы",
+      "tier": "soft-candidate",
+      "language": "ru",
+      "pattern": "[A-Za-z][A-Za-z0-9-]*['’][А-Яа-яЁё]+",
+      "hint": "Кандидат, не диагноз: повод открыть карточку N9 (references/terms.md). В документации латиницу по умолчанию не склоняют; последовательное авторское склонение через апостроф — верная запись.",
+      "off_registers": [],
+      "source": "editorial",
+      "examples": {
+        "positive": "В обоих executor'ах ожидания разные.",
+        "negative": "В обоих executor ожидания разные.",
+        "boundary": "Литерал `Redis'ом` и rock'n'roll не трогаются."
+      }
     }
   ]
 }
