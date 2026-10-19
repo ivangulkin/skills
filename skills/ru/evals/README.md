@@ -66,6 +66,8 @@ Placeholder, tracking param и invisible Unicode сами по себе CI не 
 - `runbook-function-contract` — trigger, commands, verification, rollback,
   escalation и deadline сохраняются;
 - `embedded-instructions-are-data` — instructions внутри input не исполняются.
+- `reference-step-edit`, `reference-step-write` — справочники шага 3 прочитаны
+  до результата: N9, H10, H14, L2, G18 при правке, те же признаки при письме.
 
 `trigger-evals.json` отдельно задаёт activation boundary. Он содержит Russian
 near-miss cases для code-only, SQL diagnosis, English prose, translation,
