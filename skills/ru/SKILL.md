@@ -55,6 +55,14 @@ license: MIT
 
 Шаги 1, 2, 3, 6 и 7 обязательны всегда. Остальное — по задаче.
 
+**Как читать справочник** — в любом шаге и в маршруте письма. Файл целиком не
+читай: его оглавление — заголовки. Найди их поиском по `^#{1,3} ` вместе с
+номерами строк и прочитай по строкам карточки, чьи заголовки касаются текста, и
+общий раздел файла о том, что править нельзя, если такой есть. Заголовки всех
+справочников, которые понадобятся в шагах 1–3, ищи за один ход, а карточки
+читай за второй, параллельными вызовами: каждый лишний ход заново обрабатывает
+весь контекст.
+
 **1. Определи жанр, регистр, поверхность и аудиторию.**
 [context.md](references/context.md) решает, какие правила к этому тексту вообще
 применимы; [genres.md](references/genres.md) даёт скелет. Прямая просьба человека
@@ -95,13 +103,6 @@ license: MIT
 | жанр с контрактом в [contracts.md](references/contracts.md) | контракт этого жанра |
 
 Узкая просьба сужает и этот шаг: открываются справочники только её предмета.
-
-**Как читать справочник.** Файл целиком не читай: его оглавление — заголовки.
-Найди их поиском по `^#{1,3} ` вместе с номерами строк и прочитай по строкам
-карточки, чьи заголовки касаются текста, и общий раздел файла о том, что
-править нельзя, если такой есть. Заголовки всех выбранных справочников ищи за
-один ход, а нужные карточки читай за второй, параллельными вызовами: каждый
-лишний ход заново обрабатывает весь контекст.
 
 Шаг готов, когда в каждом таком справочнике прочитаны применимые карточки
 вместе с их условиями и разделом «не трогать». Их идентификаторы — список для
@@ -241,32 +242,17 @@ license: MIT
 | Перестроить длинный текст | [composition.md](references/composition.md), [cohesion.md](references/cohesion.md) |
 | Проверить утверждения по источникам | [source-integrity.md](references/source-integrity.md) и сами источники |
 | Русская форма английского слова: род названия, вид глагола, запись окончания, английская фраза в предложении | [terms.md](references/terms.md) |
+| Лицо, обращение, наклонение, пассив, модальность | [register.md](references/register.md) |
 | Ответить на вопрос о норме | [sources.md](references/sources.md), [disputed.md](references/disputed.md) |
 
-Полная карта справочников:
-
-| Предмет | Файл | Правила |
-|---|---|---|
-| Что правка менять не должна | [protect.md](references/protect.md) | P |
-| Контракт жанра | [contracts.md](references/contracts.md) | F |
-| Тире, двоеточие, запятая, точка с запятой, кавычки | [punctuation.md](references/punctuation.md) | T, C, Z, S, K |
-| Порядок слов, управление, согласование, союзы, обороты, вид глагола | [sentence.md](references/sentence.md) | G |
-| Заголовки и рубрикация | [headings.md](references/headings.md) | H |
-| Прямой и косвенный вопрос, риторика | [questions.md](references/questions.md) | Q |
-| Абзац и связь между предложениями | [cohesion.md](references/cohesion.md) | W |
-| Лицо, обращение, наклонение, пассив, модальность | [register.md](references/register.md) | R |
-| Перечни и таблицы | [lists.md](references/lists.md) | L |
-| Термин: склонение, род, графика | [terms.md](references/terms.md) | N |
-| Значение слова, сочетаемость, управление синонимов | [lexicon.md](references/lexicon.md) | M |
-| Орфография: куда идти за ответом | [spelling.md](references/spelling.md) | — |
-| Числа, единицы, проценты, валюта, сокращения | [typography.md](references/typography.md) | Y |
-| Вода, штампы, оценки без факта, пустой образ | [editorial.md](references/editorial.md) | E |
-| Композиция, мораль, слишком чистый вывод | [composition.md](references/composition.md) | X |
-| Где какое правило применимо | [context.md](references/context.md) | — |
-| Скелеты жанров | [genres.md](references/genres.md) | — |
-| Проверка источников в правимом тексте | [source-integrity.md](references/source-integrity.md) | — |
-| Где источники расходятся | [disputed.md](references/disputed.md) | — |
-| Иерархия источников и библиотека | [sources.md](references/sources.md) | — |
+Карточка по идентификатору лежит в файле своей буквы: P — [protect.md](references/protect.md),
+F — [contracts.md](references/contracts.md), T, C, Z, S, K — [punctuation.md](references/punctuation.md),
+G — [sentence.md](references/sentence.md), H — [headings.md](references/headings.md),
+Q — [questions.md](references/questions.md), W — [cohesion.md](references/cohesion.md),
+R — [register.md](references/register.md), L — [lists.md](references/lists.md),
+N — [terms.md](references/terms.md), M — [lexicon.md](references/lexicon.md),
+Y — [typography.md](references/typography.md), E — [editorial.md](references/editorial.md),
+X — [composition.md](references/composition.md).
 
 Первоисточники лежат в локальной библиотеке автора и в репозиторий не входят
 (оговорка — в [sources.md](references/sources.md)); у автора это
