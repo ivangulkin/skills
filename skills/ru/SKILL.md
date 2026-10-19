@@ -88,7 +88,7 @@ license: MIT
 | заголовки | [headings.md](references/headings.md) |
 | перечень, критерии, пункты одного ряда | [lists.md](references/lists.md) |
 | тире или двоеточие | [punctuation.md](references/punctuation.md), для тире — процедура «Как проверить тире» |
-| сложное предложение с союзом | [sentence.md](references/sentence.md), G16–G22 |
+| две мысли или два действия, соединённые союзом, в том числе при одном подлежащем | [sentence.md](references/sentence.md), G16–G22 |
 | жанр с контрактом в [contracts.md](references/contracts.md) | контракт этого жанра |
 
 Узкая просьба сужает и этот шаг: открываются справочники только её предмета.
