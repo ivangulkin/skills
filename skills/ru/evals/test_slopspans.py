@@ -539,6 +539,22 @@ class SlopSpansTests(unittest.TestCase):
                 self.assertEqual(0, SLOPSPANS.main(["--artifacts-only", str(path)]))
                 self.assertEqual(0, SLOPSPANS.main([str(path)]))
 
+    def test_latin_apostrophe_ending_points_to_n9(self) -> None:
+        self.check_rule(
+            "format.latin-apostrophe-ending",
+            positive=(
+                "## 3. Ожидания в multiplexer-executor'ах. В обоих executor'ах…",
+                "Подключитесь к Redis’у.",
+            ),
+            negative=(
+                "Ожидания в обоих multiplexer-executor.",
+                "Запусти `kubectl get pod'ов` в консоли.",
+                "```\nexecutor'ах\n```",
+                "Д’Артаньян и rock'n'roll.",
+            ),
+            register="chat",
+        )
+
     def test_offer_tail_and_variant_label_are_off_in_chat_and_commit(self) -> None:
         self.check_rule(
             "soft.offer-tail",
