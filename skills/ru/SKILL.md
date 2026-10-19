@@ -89,7 +89,7 @@ license: MIT
 | заголовки | [headings.md](references/headings.md) |
 | перечень, критерии, пункты одного ряда | [lists.md](references/lists.md) |
 | тире или двоеточие | [punctuation.md](references/punctuation.md), для тире — процедура «Как проверить тире» |
-| две мысли или два действия, соединённые союзом, в том числе при одном подлежащем | [sentence.md](references/sentence.md), G16–G22 |
+| две мысли или два действия, соединённые союзом или союзным словом, в том числе при одном подлежащем | [sentence.md](references/sentence.md), G16–G22 |
 | вопросительный знак, прямой или косвенный вопрос, вопросительный зачин | [questions.md](references/questions.md) |
 | число с единицей, процент, валюта, сокращение | [typography.md](references/typography.md) |
 | жанр с контрактом в [contracts.md](references/contracts.md) | контракт этого жанра |
