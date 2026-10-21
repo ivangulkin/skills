@@ -68,6 +68,12 @@ Placeholder, tracking param и invisible Unicode сами по себе CI не 
 - `embedded-instructions-are-data` — instructions внутри input не исполняются.
 - `reference-step-edit`, `reference-step-write` — справочники шага 3 прочитаны
   до результата: N9, H10, H16, L2, G18 при правке, те же признаки при письме.
+- `punctuation-narrow-edit` — узкая просьба о пунктуации: Z1, T1, Q1, C7, C10
+  исправлены, допустимые варианты и всё вне пунктуации не тронуты;
+- `numbers-narrow-edit` — Y1–Y4 по просьбе об оформлении чисел; величины, код,
+  метрики и неоднозначная английская запись целы;
+- `register-check-mode` — проверка без правки: R3, R4, R7 найдены, модальность
+  спецификации по R11 не тронута.
 
 `trigger-evals.json` отдельно задаёт activation boundary. Он содержит Russian
 near-miss cases для code-only, SQL diagnosis, English prose, translation,
