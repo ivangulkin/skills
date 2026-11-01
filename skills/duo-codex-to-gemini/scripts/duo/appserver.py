@@ -938,10 +938,15 @@ class AppServer:
     ) -> dict[str, Any] | None:
         logs_dir = brain_dir() / thread_id / ".system_generated" / "logs"
         transcript = logs_dir / "transcript_full.jsonl"
-        if not transcript.is_file():
-            transcript = logs_dir / "transcript.jsonl"
-        if not transcript.is_file():
-            return None
+        try:
+            if not transcript.is_file():
+                transcript = logs_dir / "transcript.jsonl"
+            if not transcript.is_file():
+                return None
+        except OSError as exc:
+            raise AppServerError(
+                "thread/turns/list", -32000, f"cannot stat transcript in {logs_dir}: {exc}"
+            ) from exc
 
         marker = f"[duo-request-id: {client_id}]"
         steps: list[dict[str, Any]] = []
@@ -957,8 +962,10 @@ class AppServer:
                         continue
                     if isinstance(obj, dict):
                         steps.append(obj)
-        except OSError:
-            return None
+        except OSError as exc:
+            raise AppServerError(
+                "thread/turns/list", -32000, f"cannot read transcript {transcript}: {exc}"
+            ) from exc
 
         match_idx: int | None = None
         for idx, step in enumerate(steps):

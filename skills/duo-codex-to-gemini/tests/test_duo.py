@@ -3596,6 +3596,44 @@ class TestCodexToGeminiAdapter(EnvSandbox):
         self.assertEqual(config.codex_state_db_path(), self.tmp / "custom-codex-home" / "state_5.sqlite")
         self.assertEqual(config.codex_session_index_path(), self.tmp / "custom-codex-home" / "session_index.jsonl")
 
+    def test_transcript_read_error_does_not_resend_pending_request(self) -> None:
+        tid = "019cf773-da91-7840-80fd-52dc0f3660f8"
+        self._init_codex_db([(tid, str(self.tmp), "Read error test")], [])
+        self._init_summaries_db()
+        agy_journal = self.tmp / "agy_journal.json"
+        os.environ["CODEX_THREAD_ID"] = tid
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+        os.environ.pop("CLAUDE_CODE_HOST_SESSION_ID", None)
+        os.environ.pop("DUO_CODEX_BIN", None)
+        os.environ["DUO_AGY_BIN"] = str(FAKE_AGY)
+        os.environ["FAKE_AGY_JOURNAL"] = str(agy_journal)
+
+        r1 = subprocess.run(
+            [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--message", "x", "--request-id", "perm-1"],
+            capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(), timeout=60, check=False,
+        )
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        record = st.load(tid)
+        assert record is not None and record.open_request is not None and record.thread_id is not None
+        record.open_request.status = consult.REQUEST_PENDING
+        record.open_request.result = None
+        st.save(tid, record)
+
+        logs_dir = self.tmp / "brain" / record.thread_id / ".system_generated" / "logs"
+        for f in logs_dir.glob("transcript*.jsonl"):
+            f.chmod(0o000)
+        try:
+            r2 = subprocess.run(
+                [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--message", "x", "--request-id", "perm-1"],
+                capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(), timeout=60, check=False,
+            )
+            self.assertNotEqual(r2.returncode, 0)
+            turns = [c for c in json.loads(agy_journal.read_text(encoding="utf-8"))["calls"] if c["kind"] == "turn"]
+            self.assertEqual(len(turns), 1, "unreadable transcript must not resend pending turn")
+        finally:
+            for f in logs_dir.glob("transcript*.jsonl"):
+                f.chmod(0o644)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
