@@ -139,13 +139,16 @@ def models_cache_path() -> Path:
 def model_catalogue() -> tuple[ModelInfo, ...]:
     """Models available for consultation.
 
-    When ``DUO_MODELS_CACHE`` is set explicitly (in contract tests), reads that
-    file; otherwise returns the Antigravity model catalogue plus any local
-    entries so both Gemini and test model specs resolve cleanly.
+    By default returns the Antigravity model catalogue (`_GEMINI_CATALOGUE`).
+    When ``DUO_MODELS_CACHE`` is set explicitly, reads that file; when
+    ``DUO_CODEX_BIN`` is set in inherited contract tests, includes fallback
+    Codex entries so legacy test model specs resolve cleanly.
     """
     override = os.environ.get("DUO_MODELS_CACHE")
     if not override:
-        return _FALLBACK_CATALOGUE
+        if os.environ.get("DUO_CODEX_BIN") and not os.environ.get("DUO_AGY_BIN"):
+            return _FALLBACK_CATALOGUE
+        return _GEMINI_CATALOGUE
     try:
         payload = json.loads(Path(override).expanduser().read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError, ValueError):
@@ -328,12 +331,20 @@ PROFILES: dict[str, Profile] = profiles()
 DEFAULT_PROFILE = "default"
 
 
+def codex_home_dir() -> Path:
+    """Root directory of the calling Codex environment (`$CODEX_HOME` or `~/.codex`)."""
+    override = os.environ.get("CODEX_HOME", "").strip()
+    if override:
+        return Path(override).expanduser()
+    return Path.home() / ".codex"
+
+
 def state_dir() -> Path:
     """Directory holding one JSON file per Codex session."""
     override = os.environ.get("DUO_STATE_DIR")
     if override:
         return Path(override).expanduser()
-    return Path.home() / ".codex" / "state" / "duo"
+    return codex_home_dir() / "state" / "duo"
 
 
 def codex_state_db_path() -> Path:
@@ -341,7 +352,7 @@ def codex_state_db_path() -> Path:
     override = os.environ.get("DUO_CODEX_STATE_DB")
     if override:
         return Path(override).expanduser()
-    return Path.home() / ".codex" / "state_5.sqlite"
+    return codex_home_dir() / "state_5.sqlite"
 
 
 def codex_session_index_path() -> Path:
@@ -349,7 +360,7 @@ def codex_session_index_path() -> Path:
     override = os.environ.get("DUO_CODEX_SESSION_INDEX")
     if override:
         return Path(override).expanduser()
-    return Path.home() / ".codex" / "session_index.jsonl"
+    return codex_home_dir() / "session_index.jsonl"
 
 
 def summaries_db_path() -> Path:

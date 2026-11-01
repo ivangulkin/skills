@@ -229,11 +229,25 @@ def phase_context(phase: str, verdict_format: str = FORMAT_TRAILER) -> dict[str,
     }
 
 
-_TRAILER_REMINDER = (
+_LEGACY_TRAILER_REMINDER = (
     "Ответь в двух частях: сначала понятный человеку разбор обычной прозой, "
     "а последним блоком ответа — один блок ```json с вердиктом "
     "(stance, stop, confidence, summary, findings, open_questions) без текста после него."
 )
+
+_TRAILER_REMINDER = """\
+Ответь строго в двух частях: сначала разбор обычной прозой для человека, а последним блоком ответа (на верхнем уровне, без текста после него) — блок ```json по шаблону:
+
+```json
+{
+  "stance": "agree",
+  "stop": true,
+  "confidence": "high",
+  "summary": "...",
+  "findings": [],
+  "open_questions": []
+}
+```"""
 
 
 def _canonical_message(phase: str, message: str) -> str:
@@ -766,9 +780,14 @@ def run_round(
     request_id = (request_id or "").strip() or new_id()
     route = resolve_key(claude_session_id, host_session_id)
     key, lock_keys = route.key, route.locked
+    base_canonical = _canonical_message(phase, message)
     framed = frame_message(phase, message, verdict_format)
-    message_hash = sha256(_canonical_message(phase, message))
-    accepted_hashes = {message_hash, sha256(frame_message(phase, message, FORMAT_TRAILER))}
+    message_hash = sha256(base_canonical)
+    accepted_hashes = {
+        message_hash,
+        sha256(frame_message(phase, message, FORMAT_TRAILER)),
+        sha256(f"{base_canonical}\n---\n{_LEGACY_TRAILER_REMINDER}\n"),
+    }
     # Before any path can start, resume or fork a thread: recovery forks too.
     if thread_options.developer_instructions is None:
         thread_options.developer_instructions = developer_instructions()

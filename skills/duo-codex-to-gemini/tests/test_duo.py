@@ -3553,6 +3553,49 @@ class TestCodexToGeminiAdapter(EnvSandbox):
         calls_after = len(json.loads(agy_journal.read_text(encoding="utf-8"))["calls"])
         self.assertEqual(calls_before, calls_after, "resumed turn must not invoke a new agy turn")
 
+    def test_custom_agy_bin_name_models_catalogue_and_codex_home(self) -> None:
+        custom_bin = self.tmp / "agy-cli"
+        custom_bin.write_text(FAKE_AGY.read_text(encoding="utf-8"), encoding="utf-8")
+        custom_bin.chmod(0o755)
+        self._init_codex_db([("019cf773-da91-7840-80fd-52dc0f3660f8", str(self.tmp), "Custom agy test")], [])
+        self._init_summaries_db()
+        agy_journal = self.tmp / "agy_journal.json"
+        os.environ["CODEX_THREAD_ID"] = "019cf773-da91-7840-80fd-52dc0f3660f8"
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+        os.environ.pop("CLAUDE_CODE_HOST_SESSION_ID", None)
+        os.environ.pop("DUO_CODEX_BIN", None)
+        os.environ["DUO_AGY_BIN"] = str(custom_bin)
+        os.environ["FAKE_AGY_JOURNAL"] = str(agy_journal)
+
+        models_done = subprocess.run(
+            [sys.executable, str(PACKAGE), "models", "--json"],
+            capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(), timeout=60, check=False,
+        )
+        self.assertEqual(models_done.returncode, 0, models_done.stderr)
+        slugs = [m["slug"] for m in json.loads(models_done.stdout)]
+        self.assertEqual(
+            slugs,
+            ["gemini-4-argon", "gemini-3.8-flash", "claude-opus-5-5", "claude-sonnet-5-5", "gpt-oss-120b"],
+        )
+
+        ask_done = subprocess.run(
+            [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--message", "x", "--request-id", "custom-1"],
+            capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(), timeout=60, check=False,
+        )
+        self.assertEqual(ask_done.returncode, 0, ask_done.stderr)
+        calls = [c for c in json.loads(agy_journal.read_text(encoding="utf-8"))["calls"] if c["kind"] == "turn"]
+        self.assertEqual(len(calls), 1)
+        self.assertIn("--output-format", calls[0]["argv"])
+        self.assertNotIn("app-server", calls[0]["argv"])
+
+        os.environ.pop("DUO_STATE_DIR", None)
+        os.environ.pop("DUO_CODEX_STATE_DB", None)
+        os.environ.pop("DUO_CODEX_SESSION_INDEX", None)
+        os.environ["CODEX_HOME"] = str(self.tmp / "custom-codex-home")
+        self.assertEqual(config.state_dir(), self.tmp / "custom-codex-home" / "state" / "duo")
+        self.assertEqual(config.codex_state_db_path(), self.tmp / "custom-codex-home" / "state_5.sqlite")
+        self.assertEqual(config.codex_session_index_path(), self.tmp / "custom-codex-home" / "session_index.jsonl")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

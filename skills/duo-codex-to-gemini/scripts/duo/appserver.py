@@ -241,10 +241,15 @@ class AppServer:
         self._client_name = client_name
         self._client_version = client_version
         self._on_event = on_event
-        self._is_agy = (
-            codex_bin.name == "agy"
+        self._is_agy = bool(
+            os.environ.get("DUO_AGY_BIN")
+            or codex_bin.name == "agy"
             or codex_bin.name.startswith("fake_agy")
             or os.environ.get("DUO_TRANSPORT") == "agy"
+            or not (
+                os.environ.get("DUO_CODEX_BIN")
+                or codex_bin.name in ("codex", "fake_codex.py")
+            )
         )
         self._agy_thread_options: dict[str, Any] = {}
         self._agy_pending_names: dict[str, str] = {}
