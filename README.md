@@ -7,7 +7,9 @@
 | Скилл | Что делает |
 |---|---|
 | [`ru`](skills/ru) | Пишет, правит и проверяет русский текст: знаки, заголовки, перечни, вода и штампы. Факты, числа, условия и термины правки не меняет |
-| [`duo`](skills/duo), [`duo-design`](skills/duo-design), [`duo-review`](skills/duo-review) | Согласование плана и ревью работы с Codex в постоянном треде | в разработке: имена и устройство изменятся, в marketplace не входят |
+| [`duo-claude-to-codex`](skills/duo-claude-to-codex) | Согласование плана (`--phase design`) и ревью работы (`--phase review`) с Codex из Claude Code в постоянном треде |
+| [`duo-gemini-to-codex`](skills/duo-gemini-to-codex) | Согласование плана и ревью работы с Codex из Gemini / Antigravity в постоянном треде |
+| [`duo-codex-to-gemini`](skills/duo-codex-to-gemini) | Согласование плана и ревью работы с Gemini / Antigravity из Codex в постоянной беседе |
 
 ## Установка
 
@@ -58,10 +60,12 @@ python3 -m unittest discover -s evals -p 'test_*.py'
 python3 scripts/validate_skill.py    # нужен PyYAML
 ```
 
-Тесты `duo` идут против поддельного Codex, без ключа и квоты:
+Тесты скиллов `duo-*` идут против поддельных клиентов (`fake_codex.py` и `fake_agy.py`), без ключа и квоты:
 
 ```bash
-bash skills/duo/tests/run-tests.sh    # нужен jsonschema
+bash skills/duo-claude-to-codex/tests/run-tests.sh
+bash skills/duo-gemini-to-codex/tests/run-tests.sh
+bash skills/duo-codex-to-gemini/tests/run-tests.sh
 ```
 
 ## Лицензия

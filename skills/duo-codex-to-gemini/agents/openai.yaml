@@ -1,0 +1,7 @@
+interface:
+  display_name: "duo-codex-to-gemini"
+  short_description: "Парный разбор дизайна и ревью кода с Gemini / Antigravity из Codex"
+  default_prompt: "Согласуй план или проведи ревью изменений с Gemini в постоянной беседе этой сессии."
+
+policy:
+  allow_implicit_invocation: true

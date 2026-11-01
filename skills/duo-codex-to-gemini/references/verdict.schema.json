@@ -1,0 +1,97 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "stance",
+    "stop",
+    "confidence",
+    "summary",
+    "findings",
+    "open_questions"
+  ],
+  "properties": {
+    "stance": {
+      "type": "string",
+      "enum": [
+        "agree",
+        "disagree",
+        "needs_info"
+      ],
+      "description": "agree — the proposal is sound as it stands. disagree — at least one objection remains. needs_info — cannot judge until the open questions are answered."
+    },
+    "stop": {
+      "type": "boolean",
+      "description": "True only when there is nothing further worth discussing."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "description": "Two or three sentences a human can act on."
+    },
+    "findings": {
+      "type": "array",
+      "description": "One entry per objection. Carry ids across rounds.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "severity",
+          "claim",
+          "evidence",
+          "response",
+          "rationale"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable across rounds, e.g. f1, f2."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "p0",
+              "p1",
+              "p2",
+              "p3"
+            ]
+          },
+          "claim": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "What supports the claim. No evidence, no finding."
+          },
+          "response": {
+            "type": "string",
+            "enum": [
+              "new",
+              "confirm",
+              "dispute",
+              "retract"
+            ],
+            "description": "new — raised this round. confirm — the other side was right. dispute — rejected, with rationale. retract — withdrawn."
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Required for dispute; a bare disagreement does not count."
+          }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

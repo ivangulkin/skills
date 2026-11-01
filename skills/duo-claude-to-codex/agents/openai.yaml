@@ -1,0 +1,7 @@
+interface:
+  display_name: "duo-claude-to-codex"
+  short_description: "Парный разбор дизайна и ревью кода с Codex из Claude Code"
+  default_prompt: "Согласуй план или проведи ревью изменений с Codex в постоянном треде этой сессии."
+
+policy:
+  allow_implicit_invocation: true
