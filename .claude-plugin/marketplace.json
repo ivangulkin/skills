@@ -1,7 +1,7 @@
 {
   "name": "ivangulkin-skills",
   "owner": { "name": "ivangulkin" },
-  "description": "Skills for Claude Code and Codex.",
+  "description": "Skills for Claude Code, Codex and Gemini / Antigravity.",
   "plugins": [
     {
       "name": "ru",
@@ -10,6 +10,30 @@
       "category": "writing",
       "strict": false,
       "skills": ["./skills/ru"]
+    },
+    {
+      "name": "duo-claude-to-codex",
+      "source": "./",
+      "description": "Paired design alignment and code review with Codex from Claude Code in a persistent named thread.",
+      "category": "engineering",
+      "strict": false,
+      "skills": ["./skills/duo-claude-to-codex"]
+    },
+    {
+      "name": "duo-gemini-to-codex",
+      "source": "./",
+      "description": "Paired design alignment and code review with Codex from Gemini / Antigravity in a persistent named thread.",
+      "category": "engineering",
+      "strict": false,
+      "skills": ["./skills/duo-gemini-to-codex"]
+    },
+    {
+      "name": "duo-codex-to-gemini",
+      "source": "./",
+      "description": "Paired design alignment and code review with Gemini / Antigravity from Codex in a persistent named conversation.",
+      "category": "engineering",
+      "strict": false,
+      "skills": ["./skills/duo-codex-to-gemini"]
     }
   ]
 }
