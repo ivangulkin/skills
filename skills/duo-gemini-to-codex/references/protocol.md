@@ -1,8 +1,14 @@
 # Контракт app-server, на который опирается код
 
-Проверено на `codex-cli 0.152.1`, `0.153.0-alpha.5` и `0.160.1`. Контракт
+Проверено на `codex-cli 0.152.1`, `0.153.0-alpha.5`, `0.160.1` и
+`0.169.0-alpha.11.1`. Контракт
 версионный: после обновления Codex схему надо перегенерировать и сверить, а не
 надеяться.
+
+Сверка 0.169.0-alpha.11.1 против 0.160.1, 18.11.2026: набор запросов сервера
+тот же. У `item/commandExecution/requestApproval` появился вид `humanCommand`,
+но сервер шлёт его только клиенту с возможностью `requiredHumanApproval`, а duo
+её не объявляет. Запросы duo и его ответы проходят по новой фикстуре схемы.
 
 Сверка 0.160.1 против 0.152.1, 06.10.2026: все методы и поля, которые шлёт duo,
 на месте. Добавились четыре запроса сервера. На
@@ -36,7 +42,7 @@ CODEX=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
 
 ```bash
 OUT=$(mktemp -d); "$CODEX" app-server generate-json-schema --experimental --out "$OUT"
-(cd tests/schema/0.160.1 && find . -name '*.json') | while read -r f; do
+(cd tests/schema/0.169.0-alpha.11.1 && find . -name '*.json') | while read -r f; do
   mkdir -p "tests/schema/NEW/$(dirname "$f")" && cp "$OUT/$f" "tests/schema/NEW/$f"; done
 ```
 

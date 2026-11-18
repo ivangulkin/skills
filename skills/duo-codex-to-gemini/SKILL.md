@@ -43,10 +43,10 @@ python3 "$DUO" verify      # ничего не тратит; всё, что мо
 
    ```bash
    RID=$(uuidgen | tr A-Z a-z)   # запомни: он нужен для повтора и для подтверждения
-   python3 "$DUO" ask --phase design --message-file "$TMPDIR/duo-design-1.md" --model 'pro high' --request-id "$RID"
+   python3 "$DUO" ask --phase design --message-file "$TMPDIR/duo-design-1.md" --model 'carbon high' --request-id "$RID"
    ```
 
-   Для быстрого прогона есть `--model 'flash low'` или `--profile test`; для глубокого разбора и ревью по умолчанию используется профиль `default` (`gemini-4-argon` с усилием `high`).
+   Для быстрого прогона есть `--model 'flash low'` или `--profile test`; для глубокого разбора и ревью по умолчанию используется профиль `default` (`gemini-4-carbon` с усилием `high`).
    Если вывод потерян или ход прерван — повтори команду с **тем же** `--request-id`: ответ воспроизведётся из state или дособерётся из транскрипта `brain/<conversation_id>`, второй ход не уйдёт.
 
 3. **Разбери возражения по `id`.** Когда в выводе строка `ПРОДОЛЖАТЬ:`, каждое блокирующее возражение (`p0`/`p1`) требует ответа в разделе 5 следующего брифа:
@@ -93,11 +93,13 @@ Gemini всегда отвечает сначала понятной челов�
 
 ```bash
 python3 "$DUO" models                                    # каталог моделей Antigravity
+--model 'carbon high'      --model 'carbon medium'       # gemini-4-carbon
+--model 'hydrogen xhigh'   --model 'hydrogen high'       # gemini-4-hydrogen
 --model 'pro high'         --model 'argon medium'        # gemini-4-argon (Pro)
 --model 'flash low'        --model 'flash medium'        # gemini-3.8-flash
 --model 'opus high'        --model 'sonnet medium'       # claude-opus-5-5 / claude-sonnet-5-5
---effort high                                            # low | medium | high
---profile test                                           # gemini-3.8-flash / low; default — gemini-4-argon / high
+--effort high                                            # low | medium | high; xhigh только у hydrogen
+--profile test                                           # gemini-3.8-flash / low; default — gemini-4-carbon / high
 ```
 
 Если передать слитный слаг вроде `--model gemini-4-argon-medium` вместе с
