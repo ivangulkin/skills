@@ -31,6 +31,7 @@ VERIFIED_CODEX_VERSIONS = (
     "0.153.4",
     "0.160.1",
     "0.166.0-alpha.5.1",
+    "0.169.0-alpha.11.1",
 )
 
 # Where the Codex binary lives when ChatGPT.app ships it. A Homebrew cask may
@@ -96,22 +97,28 @@ class ModelInfo:
 
 
 # Used when the catalogue cannot be read. Copied from
-# ~/.codex/models_cache.json on 05.09.2026; a fallback, not a contract.
+# ~/.codex/models_cache.json on 18.11.2026; a fallback, not a contract.
 _FALLBACK_CATALOGUE: tuple[ModelInfo, ...] = (
+    ModelInfo("gpt-6.2-sol", "GPT-6.2-Sol", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
+    ModelInfo("gpt-6.2-astra", "GPT-6.2-Astra", "low",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), 'priority'),
+    ModelInfo("gpt-6.1-terra", "GPT-6.1 Terra", "low",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), 'priority'),
+    ModelInfo("gpt-6.1-sol", "GPT-6.1-Sol", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
     ModelInfo("gpt-6-astra", "GPT-6-Astra", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
-    ModelInfo("gpt-5.6-sol", "GPT-5.6-Sol", "low",
+    ModelInfo("gpt-6-sol", "GPT-6-Sol", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
+    ModelInfo("gpt-6-luna", "GPT-6-Luna", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max'), ('fast',), None),
+    ModelInfo("gpt-5.6-sol", "GPT-5.6-Sol", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
     ModelInfo("gpt-5.6-terra", "GPT-5.6-Terra", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
     ModelInfo("gpt-5.6-luna", "GPT-5.6-Luna", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max'), ('fast',), None),
-    ModelInfo("gpt-5.5", "GPT-5.5", "medium",
-              ('low', 'medium', 'high', 'xhigh'), ('fast',), None),
-    ModelInfo("gpt-5.4-mini", "GPT-5.4-Mini", "medium",
-              ('low', 'medium', 'high', 'xhigh'), (), None),
-    ModelInfo("gpt-5.3-codex-spark", "GPT-5.3-Codex-Spark", "high",
-              ('low', 'medium', 'high', 'xhigh'), (), None),
 )
 
 
@@ -288,8 +295,8 @@ def resolve_model_spec(spec: str) -> tuple[str, str | None]:
 # on standard speed. Everything else is one profile per catalogue model at its
 # own default effort, so any of them can be reached by name.
 _INTENT_PROFILES: dict[str, Profile] = {
-    "default": Profile(name="default", model="gpt-6-astra", effort="max"),
-    "test": Profile(name="test", model="gpt-5.6-luna", effort="low"),
+    "default": Profile(name="default", model="gpt-6.2-sol", effort="xhigh"),
+    "test": Profile(name="test", model="gpt-6-luna", effort="low"),
 }
 
 

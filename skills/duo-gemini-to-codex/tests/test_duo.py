@@ -2959,7 +2959,7 @@ class TestThreadNameFollowsChat(ChatFixture):
 
 import jsonschema
 
-SCHEMA = Path(__file__).resolve().parent / "schema" / "0.160.1"
+SCHEMA = Path(__file__).resolve().parent / "schema" / "0.169.0-alpha.11.1"
 
 
 class _Recorder:
@@ -2974,7 +2974,7 @@ class _Recorder:
 
 
 class TestProtocolContract(EnvSandbox):
-    """What duo sends and answers, checked against the schema of codex-cli 0.160.1.
+    """What duo sends and answers, checked against the schema of codex-cli 0.169.0-alpha.11.1.
 
     The fixture is the generator's own output, copied file for file; refresh it
     with the command in references/protocol.md.

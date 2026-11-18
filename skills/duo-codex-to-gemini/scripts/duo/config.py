@@ -23,6 +23,7 @@ VERIFIED_CODEX_VERSIONS = (
     "0.153.4",
     "0.160.1",
     "0.166.0-alpha.5.1",
+    "0.169.0-alpha.11.1",
     "1.4.12",
 )
 
@@ -66,6 +67,22 @@ class ModelInfo:
 # Models supported by `agy --app_data_dir=antigravity models`.
 _GEMINI_CATALOGUE: tuple[ModelInfo, ...] = (
     ModelInfo(
+        "gemini-4-carbon",
+        "Gemini 4 Carbon",
+        "high",
+        ("low", "medium", "high"),
+        (),
+        None,
+    ),
+    ModelInfo(
+        "gemini-4-hydrogen",
+        "Gemini 4 Hydrogen",
+        "high",
+        ("low", "medium", "high", "xhigh"),
+        (),
+        None,
+    ),
+    ModelInfo(
         "gemini-4-argon",
         "Gemini 4 Argon (Pro)",
         "high",
@@ -83,7 +100,7 @@ _GEMINI_CATALOGUE: tuple[ModelInfo, ...] = (
     ),
     ModelInfo(
         "claude-opus-5-5",
-        "Claude Opus 4.6",
+        "Claude Opus 5.5",
         "high",
         ("low", "medium", "high"),
         (),
@@ -91,7 +108,7 @@ _GEMINI_CATALOGUE: tuple[ModelInfo, ...] = (
     ),
     ModelInfo(
         "claude-sonnet-5-5",
-        "Claude Sonnet 4.6",
+        "Claude Sonnet 5.5",
         "medium",
         ("low", "medium", "high"),
         (),
@@ -108,20 +125,26 @@ _GEMINI_CATALOGUE: tuple[ModelInfo, ...] = (
 )
 
 _FALLBACK_CATALOGUE: tuple[ModelInfo, ...] = _GEMINI_CATALOGUE + (
+    ModelInfo("gpt-6.2-sol", "GPT-6.2-Sol", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
+    ModelInfo("gpt-6.2-astra", "GPT-6.2-Astra", "low",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), 'priority'),
+    ModelInfo("gpt-6.1-terra", "GPT-6.1 Terra", "low",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), 'priority'),
+    ModelInfo("gpt-6.1-sol", "GPT-6.1-Sol", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
     ModelInfo("gpt-6-astra", "GPT-6-Astra", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
-    ModelInfo("gpt-5.6-sol", "GPT-5.6-Sol", "low",
+    ModelInfo("gpt-6-sol", "GPT-6-Sol", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
+    ModelInfo("gpt-6-luna", "GPT-6-Luna", "medium",
+              ('low', 'medium', 'high', 'xhigh', 'max'), ('fast',), None),
+    ModelInfo("gpt-5.6-sol", "GPT-5.6-Sol", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
     ModelInfo("gpt-5.6-terra", "GPT-5.6-Terra", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max', 'ultra'), ('fast',), None),
     ModelInfo("gpt-5.6-luna", "GPT-5.6-Luna", "medium",
               ('low', 'medium', 'high', 'xhigh', 'max'), ('fast',), None),
-    ModelInfo("gpt-5.5", "GPT-5.5", "medium",
-              ('low', 'medium', 'high', 'xhigh'), ('fast',), None),
-    ModelInfo("gpt-5.4-mini", "GPT-5.4-Mini", "medium",
-              ('low', 'medium', 'high', 'xhigh'), (), None),
-    ModelInfo("gpt-5.3-codex-spark", "GPT-5.3-Codex-Spark", "high",
-              ('low', 'medium', 'high', 'xhigh'), (), None),
 )
 
 
@@ -226,6 +249,8 @@ EFFORT_ALIASES: dict[str, str] = {
 MODEL_ALIASES: dict[str, str] = {
     "pro": "gemini-4-argon",
     "argon": "gemini-4-argon",
+    "carbon": "gemini-4-carbon",
+    "hydrogen": "gemini-4-hydrogen",
     "flash": "gemini-3.8-flash",
     "opus": "claude-opus-5-5",
     "sonnet": "claude-sonnet-5-5",
@@ -244,10 +269,10 @@ def normalize_agy_model_and_effort(
     if not model:
         return None, effort
     cleaned = model.strip()
-    for base in ("gemini-4-argon", "gemini-3.8-flash", "claude-opus-5-5", "claude-sonnet-5-5"):
-        for suffix in ("low", "medium", "high"):
-            if cleaned == f"{base}-{suffix}":
-                return base, effort or suffix
+    for info in _GEMINI_CATALOGUE:
+        for suffix in info.efforts:
+            if cleaned == f"{info.slug}-{suffix}":
+                return info.slug, effort or suffix
     return cleaned, effort
 
 
@@ -312,7 +337,7 @@ def resolve_model_spec(spec: str) -> tuple[str, str | None]:
 
 
 _INTENT_PROFILES: dict[str, Profile] = {
-    "default": Profile(name="default", model="gemini-4-argon", effort="high"),
+    "default": Profile(name="default", model="gemini-4-carbon", effort="high"),
     "test": Profile(name="test", model="gemini-3.8-flash", effort="low"),
 }
 
