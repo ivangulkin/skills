@@ -852,7 +852,6 @@ class AppServer:
             "--input-format",
             "stream-json",
             "--dangerously-skip-permissions",
-            "--disable-slash-commands",
             "--conversation",
             thread_id,
             "--add-dir",
@@ -865,10 +864,14 @@ class AppServer:
             cmd.extend(["--model", model])
         if effort:
             cmd.extend(["--effort", effort])
-        # `--mode plan` is ignored together with `--disable-slash-commands`;
-        # the terminal sandbox is what restricts a read-only reviewer.
+        # Plan mode is what keeps a read-only reviewer from editing files: the
+        # terminal sandbox alone still lets it write. agy ignores `--mode plan`
+        # next to `--disable-slash-commands`, so a read-only turn drops that
+        # flag; the prompt never starts with `/`, so nothing gets expanded.
         if self._agy_thread_options.get("sandbox") == "read-only":
-            cmd.append("--sandbox")
+            cmd.extend(["--sandbox", "--mode", "plan"])
+        else:
+            cmd.append("--disable-slash-commands")
         cmd.append("-p=")
 
         self._inbox = queue.Queue()

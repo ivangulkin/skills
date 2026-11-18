@@ -83,9 +83,12 @@ OUT=$(mktemp -d); "$CODEX" app-server generate-json-schema --experimental --out 
   адаптер читает только как признак жизни для idle-таймаута. Событий
   `AppendResponseText` и `message`, которых ждал адаптер 1.4, больше нет.
 - `--mode plan` рядом с `--disable-slash-commands` игнорируется с
-  предупреждением, поэтому тред с `--sandbox read-only` получает только
-  `--sandbox` — ограничения терминала. Запрещает ли оно агенту правки файлов,
-  как запрещал plan, не проверено.
+  предупреждением, а одного `--sandbox` мало: проба 18.11.2026 с
+  `--dangerously-skip-permissions` и `--sandbox` создала файл в рабочем
+  каталоге, а с `--mode plan` — нет. Поэтому ход треда с `--sandbox read-only`
+  идёт с `--sandbox --mode plan` и без `--disable-slash-commands`. Промпт
+  начинается с маркера `[duo-request-id: …]`, а не с `/`, так что разворачивать
+  agy нечего. Без `--sandbox read-only` оппонент файлы править может.
 
 В транскрипте беседы запрос лежит в шаге `USER_INPUT`, обёрнутый в
 `<USER_REQUEST>`; маркер `[duo-request-id: …]` внутри него восстановление

@@ -3661,7 +3661,8 @@ class TestCodexToGeminiAdapter(EnvSandbox):
         argv = journal["calls"][1]["argv"]
         self.assertEqual(argv[-1], "-p=")
         self.assertIn("--sandbox", argv)
-        self.assertNotIn("--mode", argv, "--mode plan is ignored next to --disable-slash-commands")
+        self.assertEqual(argv[argv.index("--mode") + 1], "plan")
+        self.assertNotIn("--disable-slash-commands", argv, "agy ignores --mode plan next to it")
         prompt = journal["conversations"][journal["calls"][1]["conversation_id"]]["turns"][0]["prompt"]
         self.assertTrue(prompt.startswith("[duo-request-id: stream-1]"))
         self.assertIn("Проверь план", prompt)
