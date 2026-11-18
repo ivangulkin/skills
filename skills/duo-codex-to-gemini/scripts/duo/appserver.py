@@ -735,17 +735,23 @@ class AppServer:
             conn.close()
 
     def _agy_create_conversation(self, timeout: float) -> str:
+        # Empty stream-json input: agy 1.5 creates the conversation, prints
+        # `init` with its id and exits without a turn. `-p=/model` no longer
+        # works — the CLI answers slash commands itself with an empty id.
         cmd = [
             str(self._bin),
             "--app_data_dir=antigravity",
             "--output-format",
             "stream-json",
-            "-p=/model",
+            "--input-format",
+            "stream-json",
+            "-p=",
         ]
         try:
             done = subprocess.run(
                 cmd,
                 cwd=str(self._cwd),
+                stdin=subprocess.DEVNULL,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -833,13 +839,19 @@ class AppServer:
     ) -> TurnRecord:
         record = TurnRecord(turn_id=params.get("clientUserMessageId") or "agy-turn")
         prompt = self._agy_compose_prompt(params)
+        # The prompt goes in as one stream-json `user` event on stdin: no argv
+        # size limit, and bare `-p` with a stdin prompt is rejected since 1.5.
+        stdin_line = json.dumps(
+            {"event": "user", "message": {"content": prompt}}, ensure_ascii=False
+        )
         cmd = [
             str(self._bin),
             "--app_data_dir=antigravity",
             "--output-format",
             "stream-json",
+            "--input-format",
+            "stream-json",
             "--dangerously-skip-permissions",
-            "--disable-slash-commands",
             "--conversation",
             thread_id,
             "--add-dir",
@@ -852,9 +864,15 @@ class AppServer:
             cmd.extend(["--model", model])
         if effort:
             cmd.extend(["--effort", effort])
+        # Plan mode is what keeps a read-only reviewer from editing files: the
+        # terminal sandbox alone still lets it write. agy ignores `--mode plan`
+        # next to `--disable-slash-commands`, so a read-only turn drops that
+        # flag; the prompt never starts with `/`, so nothing gets expanded.
         if self._agy_thread_options.get("sandbox") == "read-only":
             cmd.extend(["--sandbox", "--mode", "plan"])
-        cmd.append("-p")
+        else:
+            cmd.append("--disable-slash-commands")
+        cmd.append("-p=")
 
         self._inbox = queue.Queue()
         self._stderr = []
@@ -871,7 +889,7 @@ class AppServer:
         )
         assert self._proc.stdin is not None
         try:
-            self._proc.stdin.write(prompt)
+            self._proc.stdin.write(stdin_line + "\n")
             self._proc.stdin.close()
         except OSError as exc:
             self.close()
@@ -882,44 +900,26 @@ class AppServer:
 
         self._last_activity = time.monotonic()
         deadline = None if timeout is None else time.monotonic() + timeout
-        chunks_by_index: dict[int, list[str]] = {}
-        order: list[int] = []
 
         try:
+            # `init` and `step_update` events only keep the idle budget fresh;
+            # the answer and the outcome come in the terminal `result` event.
             while record.status in (None, "inProgress"):
                 event = self._receive("turn/completed", deadline, idle_timeout)
-                kind = event.get("event") or event.get("type")
-                if kind == "AppendResponseText":
-                    idx = int(event.get("index", 0) or 0)
-                    content = event.get("content")
-                    if isinstance(content, str) and content:
-                        if idx not in chunks_by_index:
-                            chunks_by_index[idx] = []
-                            order.append(idx)
-                        chunks_by_index[idx].append(content)
-                elif kind == "message" and event.get("role") == "assistant":
-                    content = event.get("content")
-                    if isinstance(content, str) and content.strip():
-                        record.agent_messages.append({"type": "agentMessage", "text": content})
-                elif kind == "error":
-                    msg = str(event.get("message") or event.get("error") or "agy turn error").strip()
-                    record.errors.append(msg)
+                if event.get("event") != "result":
+                    continue
+                result = event.get("result")
+                result = result if isinstance(result, dict) else {}
+                response = result.get("response")
+                if isinstance(response, str) and response.strip():
+                    record.agent_messages.append({"type": "agentMessage", "text": response.strip()})
+                if result.get("status") == "SUCCESS":
+                    record.status = "completed"
+                else:
+                    record.errors.append(
+                        str(result.get("error") or f"agy turn ended with status {result.get('status')}").strip()
+                    )
                     record.status = "failed"
-                elif kind == "result":
-                    for idx in order:
-                        joined = "".join(chunks_by_index[idx]).strip()
-                        if joined:
-                            record.agent_messages.append({"type": "agentMessage", "text": joined})
-                    resp = event.get("response") or event.get("result")
-                    if isinstance(resp, str) and resp.strip() and not record.agent_messages:
-                        record.agent_messages.append({"type": "agentMessage", "text": resp.strip()})
-                    if event.get("is_error") or event.get("error"):
-                        err_text = str(event.get("error") or "agy turn failed").strip()
-                        if err_text not in record.errors:
-                            record.errors.append(err_text)
-                        record.status = "failed"
-                    else:
-                        record.status = "completed"
         except TurnTimeout:
             record.interrupted = True
             record.status = "interrupted"

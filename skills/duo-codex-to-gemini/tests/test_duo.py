@@ -98,6 +98,7 @@ class EnvSandbox(unittest.TestCase):
             "FAKE_AGY_JOURNAL",
             "FAKE_AGY_VERDICT",
             "FAKE_AGY_CONVERSATION_ID",
+            "FAKE_AGY_FAIL",
             "FAKE_CODEX_VERDICT",
             "FAKE_CODEX_THREAD_ID",
             "FAKE_CODEX_SEEN",
@@ -3628,12 +3629,51 @@ class TestCodexToGeminiAdapter(EnvSandbox):
                 [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--message", "x", "--request-id", "perm-1"],
                 capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(), timeout=60, check=False,
             )
-            self.assertNotEqual(r2.returncode, 0)
+            self.assertNotEqual(r2.returncode, 0, r2.stdout + r2.stderr)
             turns = [c for c in json.loads(agy_journal.read_text(encoding="utf-8"))["calls"] if c["kind"] == "turn"]
             self.assertEqual(len(turns), 1, "unreadable transcript must not resend pending turn")
         finally:
             for f in logs_dir.glob("transcript*.jsonl"):
                 f.chmod(0o644)
+
+    def test_agy_turn_sends_stream_json_prompt_and_reports_result_errors(self) -> None:
+        tid = "019cf773-da91-7840-80fd-52dc0f3660f8"
+        self._init_codex_db([(tid, str(self.tmp), "Stream test")], [])
+        self._init_summaries_db()
+        agy_journal = self.tmp / "agy_journal.json"
+        os.environ["CODEX_THREAD_ID"] = tid
+        os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+        os.environ.pop("CLAUDE_CODE_HOST_SESSION_ID", None)
+        os.environ.pop("DUO_CODEX_BIN", None)
+        os.environ["DUO_AGY_BIN"] = str(FAKE_AGY)
+        os.environ["FAKE_AGY_JOURNAL"] = str(agy_journal)
+
+        def ask(*extra: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [sys.executable, str(PACKAGE), "ask", "--phase", "design", "--message", "Проверь план", *extra],
+                capture_output=True, text=True, cwd=str(self.tmp), env=os.environ.copy(), timeout=60, check=False,
+            )
+
+        r1 = ask("--sandbox", "read-only", "--request-id", "stream-1")
+        self.assertEqual(r1.returncode, 0, r1.stderr)
+        journal = json.loads(agy_journal.read_text(encoding="utf-8"))
+        self.assertEqual([c["kind"] for c in journal["calls"]], ["init_only", "turn"])
+        argv = journal["calls"][1]["argv"]
+        self.assertEqual(argv[-1], "-p=")
+        self.assertIn("--sandbox", argv)
+        self.assertEqual(argv[argv.index("--mode") + 1], "plan")
+        self.assertNotIn("--disable-slash-commands", argv, "agy ignores --mode plan next to it")
+        prompt = journal["conversations"][journal["calls"][1]["conversation_id"]]["turns"][0]["prompt"]
+        self.assertTrue(prompt.startswith("[duo-request-id: stream-1]"))
+        self.assertIn("Проверь план", prompt)
+
+        os.environ["FAKE_AGY_FAIL"] = "weekly quota exhausted"
+        try:
+            r2 = ask("--ack-request-id", "stream-1", "--request-id", "stream-2")
+        finally:
+            os.environ.pop("FAKE_AGY_FAIL")
+        self.assertIn("статусом failed", r2.stdout, r2.stderr)
+        self.assertIn("weekly quota exhausted", r2.stdout)
 
 
 if __name__ == "__main__":

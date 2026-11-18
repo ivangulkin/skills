@@ -25,6 +25,7 @@ VERIFIED_CODEX_VERSIONS = (
     "0.166.0-alpha.5.1",
     "0.169.0-alpha.11.1",
     "1.4.12",
+    "1.5.11",
 )
 
 BUNDLED_AGY = Path.home() / ".gemini" / "bin" / "agy"
