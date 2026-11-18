@@ -61,6 +61,36 @@ OUT=$(mktemp -d); "$CODEX" app-server generate-json-schema --experimental --out 
 ответит. `appserver.py` отвечает на всё: отказом на одобрения, временем на
 `currentTime/read`, ошибкой `-32601` на незнакомое.
 
+## Транспорт `agy`
+
+Оппонент в этом скилле — `agy --app_data_dir=antigravity` в print-режиме,
+процесс на операцию; методы app-server адаптер в `appserver.py` переводит в его
+вызовы. Контракт сверен на `agy 1.5.11` 18.11.2026. Относительно 1.4.12 он
+сломался в трёх местах, и `tests/fake_agy.py` воспроизводит все три.
+
+- Беседа создаётся вызовом с `--output-format stream-json --input-format
+  stream-json -p=` и пустым stdin: CLI печатает `init` с `conversation_id` и
+  выходит без хода, а беседа появляется в `conversation_summaries.db` и
+  `brain/<id>`. Прежний `-p=/model` теперь обрабатывает сам CLI: события
+  `command_result` и `result` с пустым `conversation_id`, беседы нет.
+- Ход идёт в `--conversation <id>` с теми же форматами и `-p=`, а запрос —
+  одна строка stdin `{"event":"user","message":{"content":"<текст>"}}`. Голый
+  `-p` в конце команды 1.5 отвергает (`flag needs an argument: -p`, код 2), а
+  `-p=-` отправляет модели буквальный дефис. Через stdin, а не `-p=<текст>`,
+  потому что бриф не упирается в лимит длины argv.
+- Ответ приходит в итоговом событии `result`: `result.status` (`SUCCESS` или
+  `ERROR`), `result.response`, `result.error`. События `init` и `step_update`
+  адаптер читает только как признак жизни для idle-таймаута. Событий
+  `AppendResponseText` и `message`, которых ждал адаптер 1.4, больше нет.
+- `--mode plan` рядом с `--disable-slash-commands` игнорируется с
+  предупреждением, поэтому тред с `--sandbox read-only` получает только
+  `--sandbox` — ограничения терминала. Запрещает ли оно агенту правки файлов,
+  как запрещал plan, не проверено.
+
+В транскрипте беседы запрос лежит в шаге `USER_INPUT`, обёрнутый в
+`<USER_REQUEST>`; маркер `[duo-request-id: …]` внутри него восстановление
+находит так же, как на 1.4.
+
 ## Порядок вызовов
 
 ```
